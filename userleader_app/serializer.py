@@ -40,3 +40,7 @@ class LogoutSerializer(serializers.Serializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+
+
+class CSVSerializer(serializers.Serializer):
+    file = serializers.FileField()

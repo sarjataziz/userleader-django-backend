@@ -5,6 +5,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializer import *
 from .models import *
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+import csv
+from drf_yasg.utils import swagger_serializer_method
+from drf_yasg import openapi
 
 
 # Create your views here.
@@ -56,3 +61,20 @@ class ChangePasswordView(generics.CreateAPIView):
             return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DataHandlingView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+    serializer_class = CSVSerializer
+
+    def post(self, request):
+        try:
+            file = request.data['file']
+            # Assuming 'file' is a CSV file
+            decoded_file = file.read().decode('utf-8').splitlines()
+            csv_reader = csv.reader(decoded_file)
+            data = list(csv_reader)
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
