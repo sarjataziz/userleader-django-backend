@@ -201,4 +201,3 @@ STATICFILES_DIRS = (
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
