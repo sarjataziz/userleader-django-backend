@@ -10,7 +10,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 import csv
 from drf_yasg.utils import swagger_serializer_method
 from drf_yasg import openapi
-
+from .csv_read import csv_read
 
 # Create your views here.
 
@@ -70,11 +70,10 @@ class DataHandlingView(APIView):
 
     def post(self, request):
         try:
-            file = request.data['file']
-            # Assuming 'file' is a CSV file
-            decoded_file = file.read().decode('utf-8').splitlines()
-            csv_reader = csv.reader(decoded_file)
-            data = list(csv_reader)[1:]
+            # Get the file content from the uploaded file object
+            file_content = request.data['file'].read().decode('utf-8')
+            # Pass the file content to csv_read function
+            data = csv_read(file_content)
             return Response({'compound_name': 'Butane', 'data': data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
