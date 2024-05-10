@@ -74,7 +74,7 @@ class DataHandlingView(APIView):
             # Assuming 'file' is a CSV file
             decoded_file = file.read().decode('utf-8').splitlines()
             csv_reader = csv.reader(decoded_file)
-            data = list(csv_reader)
-            return Response(data, status=status.HTTP_200_OK)
+            data = list(csv_reader)[1:]
+            return Response({'compound_name': 'Butane', 'data': data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
