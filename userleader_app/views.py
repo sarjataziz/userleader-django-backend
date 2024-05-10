@@ -8,9 +8,9 @@ from .models import *
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 import csv
-from drf_yasg.utils import swagger_serializer_method
-from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from .csv_read import csv_read
+
 
 # Create your views here.
 
@@ -63,15 +63,21 @@ class ChangePasswordView(generics.CreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class DataHandlingView(APIView):
+class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
     serializer_class = CSVSerializer
 
-    def post(self, request):
+    @swagger_auto_schema(operation_description='Upload file...', )
+    def post(self, request, *args, **kwargs):
         try:
+            uploaded_file = request.data['file']
+            file_extension = uploaded_file.name.split('.')[-1]
+            if file_extension.lower() != 'csv':
+                raise Exception("Invalid file format. Please upload a CSV file.")
+
             # Get the file content from the uploaded file object
-            file_content = request.data['file'].read().decode('utf-8')
+            file_content = uploaded_file.read().decode('utf-8')
             # Pass the file content to csv_read function
             data = csv_read(file_content)
             return Response({'compound_name': 'Butane', 'data': data}, status=status.HTTP_200_OK)
