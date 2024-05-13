@@ -152,8 +152,8 @@ EMAIL_HOST_PASSWORD = 'coybyxgsboghyonn'  # Replace with your email password
 DJANGO_REST_PASSWORDRESET_TOKEN_CONFIG = {
     "CLASS": "django_rest_passwordreset.tokens.RandomNumberTokenGenerator",
     "OPTIONS": {
-        "min_number": 15000,
-        "max_number": 99999
+        "min_number": 1500,
+        "max_number": 9999
     }
 }
 
