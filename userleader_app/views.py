@@ -80,6 +80,12 @@ class DataHandlingView(generics.CreateAPIView):
             file_content = uploaded_file.read().decode('utf-8')
             # Pass the file content to csv_read function
             data = csv_read(file_content)
+            # with open('file.csv', mode='w', newline='') as f:
+            #     writer = csv.writer(f)
+            #     writer.writerow(["wavenumber", "transmittance", "wavelengths", "absorbance"])  # Write header
+            #     for i in range(len(data["wavenumber"])):
+            #         writer.writerow([data["wavenumber"][i], data["transmittance"][i], data["wavelengths"][i],
+            #                          data["absorbance"][i]])
             return Response({'compound_name': 'Butane', 'data': data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -39,10 +39,10 @@ def extract_y(data, row_number, y_index):
         y_numeric[okay] = log10(1.0 / y_numeric[okay])
         y_numeric[logical_not(okay)] = nan
 
-        return {'transmittance': y_numeric.tolist(), 'absorbance': y_numeric.tolist()}
+        return {'transmittance': (10 ** (2 - y_numeric)) / 100, 'absorbance': y_numeric.tolist()}
     elif data[row_number - 1][y_index] in ('absorbance', 'Absorbance', 'a', 'A'):
         # Convert absorbance to transmittance
-        return {'transmittance': (10 ** (-y_numeric)).tolist(), 'absorbance': y_numeric.tolist()}
+        return {'transmittance': ((10 ** (2 - y_numeric)) / 100).tolist(), 'absorbance': y_numeric.tolist()}
     elif data[row_number - 1][y_index] in ('(micromol/mol)-1m-1 (base 10)',):
         # Convert (micromol/mol)^-1m^-1 (base 10) to transmittance
         return {'transmittance': (10 ** (-y_numeric)).tolist(), 'absorbance': y_numeric.tolist()}
