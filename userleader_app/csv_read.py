@@ -4,22 +4,38 @@ from numpy import array, char, nan, where
 keywords = ['transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T',
             'absorbance', 'Absorbance', 'a', 'A', '(micromol/mol)-1m-1 (base 10)']
 x_header = ['cm-1', 'wavenumber', 'Wavenumber', '1/cm', 'cm^-1', 'micrometers', 'um', 'wavelength (um)',
-            'nanometers', 'nm', 'wavelength (nm)']
+            'nanometers', 'nm', 'wavelength (nm)', '1/m', 'm-1', 'm^-1', 'wavenumber (1/m)', 'Wavenumber (1/m)',
+            'wavenumber (m-1)', 'wavenumber (m^-1)', 'Wavenumber (m-1)', 'Wavenumber (m^-1)', 'wavenumber (1/cm)',
+            'Wavenumber (1/cm)',
+            'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)']
 
 
 def extract_x(data, row_number, x_index):
     # Extract X column data
     x_column_data = [row[x_index] for row in data[row_number:]]
 
-    if data[row_number - 1][x_index] in ('1/cm', 'cm-1', 'cm^-1', 'wavenumber', 'Wavenumber'):
+    if data[row_number - 1][x_index] in (
+            '1/cm', 'cm-1', 'cm^-1', 'wavenumber', 'Wavenumber', 'wavenumber (1/cm)', 'Wavenumber (1/cm)',
+            'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)'):
         # Convert wavenumber strings to floats
         x = array(x_column_data, dtype=float)
-        return {'wavenumber': x.tolist(), 'wavelengths': (10000.0 / x).tolist()}
-    elif data[row_number - 1][x_index] in (
-            'micrometers', 'um', 'wavelength (um)', 'nanometers', 'nm', 'wavelength (nm)'):
+        return {'wavenumber': x.tolist(), 'wavelengths': (10 ** 4 / x).tolist()}
+    elif data[row_number - 1][x_index] in ('micrometers', 'um', 'wavelength (um)'):
         # Convert wavelength strings to floats
         x = array(x_column_data, dtype=float)
-        return {'wavelengths': x.tolist(), 'wavenumber': (10000.0 / x).tolist()}
+        return {'wavelengths': x.tolist(), 'wavenumber': (10 ** 4 / x).tolist()}
+    elif data[row_number - 1][x_index] in ('nanometers', 'nm', 'wavelength (nm)'):
+        # Convert wavelength strings to floats
+        x = array(x_column_data, dtype=float)
+        return {'wavelengths': x.tolist(), 'wavenumber': (10 ** 7 / x).tolist()}
+    if data[row_number - 1][x_index] in (
+            '1/m', 'm-1', 'm^-1', 'wavenumber (1/m)', 'Wavenumber (1/m)',
+            'wavenumber (m-1)', 'wavenumber (m^-1)', 'Wavenumber (m-1)', 'Wavenumber (m^-1)'):
+        # Convert wavenumber strings to floats
+        x = array(x_column_data, dtype=float)
+        x = x * 100
+        return {'wavenumber': x.tolist(), 'wavelengths': (10 ** 4 / x).tolist()}
+
     else:
         return {}
 
