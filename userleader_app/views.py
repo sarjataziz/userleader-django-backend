@@ -11,7 +11,7 @@ import csv
 from drf_yasg.utils import swagger_auto_schema
 from .csv_read import csv_read
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from .integrateModel import *
 
 # Create your views here.
 
@@ -87,6 +87,7 @@ class DataHandlingView(generics.CreateAPIView):
             #     for i in range(len(data["wavenumber"])):
             #         writer.writerow([data["wavenumber"][i], data["transmittance"][i], data["wavelengths"][i],
             #                          data["absorbance"][i]])
-            return Response({'compound_name': 'Butane', 'data': data}, status=status.HTTP_200_OK)
+            compound_name = predict_most_frequent_name(data["wavenumber"],data["transmittance"])
+            return Response({'compound_name': compound_name, 'data': data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
