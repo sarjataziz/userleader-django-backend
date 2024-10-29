@@ -1,4 +1,5 @@
 from django.urls import path, include
+from . import views
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -15,4 +16,6 @@ urlpatterns = [
     path('api/v1/change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('api/v1/password_reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
     path('api/v1/file-handling/', DataHandlingView.as_view()),
+    path('', views.index, name='index'),
+    path('your-endpoint/', views.your_view_function, name='your_endpoint'),
 ]

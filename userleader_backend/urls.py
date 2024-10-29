@@ -18,12 +18,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import HttpResponse  # Make sure this import is included
+from django.http import HttpResponse
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-# Swagger schema view setup (existing code)
+# Swagger schema view setup
 schema_view = get_schema_view(
     openapi.Info(
         title="Your API Title",
@@ -37,15 +37,13 @@ schema_view = get_schema_view(
     permission_classes=[permissions.AllowAny],
 )
 
-# Define the health_check view here
 def health_check(request):
     return HttpResponse("App is running!")
 
-# URL patterns
 urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('admin/', admin.site.urls),
-    path('', include('userleader_app.urls')),
+    path('api/', include('userleader_app.urls')),  # Ensure 'api/' is included if used
     path('docs<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
