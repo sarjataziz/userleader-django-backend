@@ -1,0 +1,8 @@
+# Ignore the large model file
+userleader_app/models/best_rf_model.pkl
+
+# Python cache and virtual environment files
+__pycache__/
+*.py[cod]
+venv/
+env/
