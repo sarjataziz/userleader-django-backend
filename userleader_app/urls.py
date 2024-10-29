@@ -15,5 +15,4 @@ urlpatterns = [
     path('api/v1/change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('api/v1/password_reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
     path('api/v1/file-handling/', DataHandlingView.as_view()),
-
 ]

@@ -22,6 +22,7 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+# Swagger schema view setup
 schema_view = get_schema_view(
     openapi.Info(
         title="Snippets API",
@@ -36,13 +37,18 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    # Swagger documentation routes
     path('docs<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    
+    # Admin route
     path('admin/', admin.site.urls),
-    path('', include('userleader_app.urls'))
+    
+    # Include the app URLs
+    path('', include('userleader_app.urls')),  # This line includes your app's URL patterns
 ]
 
+# Serve static files in development
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL,
-                          document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
