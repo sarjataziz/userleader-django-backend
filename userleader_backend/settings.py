@@ -210,26 +210,3 @@ SWAGGER_SETTINGS = {
         }
     }
 }
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'formatters': {
-        'verbose': {
-            'format': '[{asctime}] {levelname} {name} {message}',
-            'style': '{',
-        },
-    },
-    'loggers': {
-        'userleader_app': {
-            'handlers': ['console'],
-            'level': 'DEBUG',  # Change to 'INFO' or 'WARNING' in production
-            'propagate': True,
-        },
-    },
-}
