@@ -85,11 +85,13 @@ class DataHandlingView(generics.CreateAPIView):
         try:
             # Ensure the file is present in the request
             if 'file' not in request.data:
+                logger.warning('No file provided in the request.')
                 return Response({'error': 'No file provided. Please upload a CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
 
             uploaded_file = request.data['file']
             file_extension = uploaded_file.name.split('.')[-1]
             if file_extension.lower() != 'csv':
+                logger.warning('Invalid file format uploaded.')
                 return Response({'error': 'Invalid file format. Please upload a CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Get the file content from the uploaded file object
@@ -101,6 +103,11 @@ class DataHandlingView(generics.CreateAPIView):
             # Construct model and data file paths
             model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
             excel_file_path = os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
+
+            # Check if model file exists
+            if not os.path.exists(model_path):
+                logger.error(f"Model file not found at: {model_path}")
+                return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             # Get the most frequent predicted compound name and the explanation
             compound_name, explanation = predict_most_frequent_name(
@@ -119,8 +126,8 @@ class DataHandlingView(generics.CreateAPIView):
 
         except FileNotFoundError as fnf_error:
             logger.error(f"File not found error: {fnf_error}")
-            return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'File not found. Please check your request.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.error(f"An error occurred: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
