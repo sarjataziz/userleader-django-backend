@@ -90,8 +90,8 @@ class DataHandlingView(generics.CreateAPIView):
             data = csv_read(file_content)
 
             # Ensure that the model and data file paths are correctly passed to the prediction function
-            model_path = os.path.join('userleader_app', 'models', 'best_rf_model.pkl')
-            excel_file_path = os.path.join('userleader_app', 'data', 'all_in_one.xlsx')
+            model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
+            excel_file_path = os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
 
             # Get the most frequent predicted compound name and the explanation
             compound_name, explanation = predict_most_frequent_name(
