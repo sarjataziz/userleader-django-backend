@@ -20,6 +20,9 @@ from .csv_read import csv_read
 from .integrateModel import predict_most_frequent_name
 from django.http import HttpResponse
 import os
+import logging
+from rest_framework.response import Response
+from rest_framework import status
 
 # Add the index view function here
 def index(request):
@@ -74,6 +77,8 @@ class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
     serializer_class = CSVSerializer
+
+logger = logging.getLogger(__name__)
 
     @swagger_auto_schema(operation_description='Upload file...')
     def post(self, request, *args, **kwargs):
