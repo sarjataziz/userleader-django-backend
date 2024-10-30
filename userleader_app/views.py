@@ -73,12 +73,12 @@ class ChangePasswordView(generics.CreateAPIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+logger = logging.getLogger(__name__)
+
 class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
     serializer_class = CSVSerializer
-
-logger = logging.getLogger(__name__)
 
     @swagger_auto_schema(operation_description='Upload file...')
     def post(self, request, *args, **kwargs):
