@@ -72,9 +72,7 @@ class ChangePasswordView(generics.CreateAPIView):
             return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-logger = logging.getLogger(__name__)
-
+    
 class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -82,19 +80,25 @@ class DataHandlingView(generics.CreateAPIView):
 
     @swagger_auto_schema(operation_description='Upload file...')
     def post(self, request, *args, **kwargs):
+        logger.info(f"Request data: {request.data}")
+
         try:
+            # Ensure the file is present in the request
+            if 'file' not in request.data:
+                return Response({'error': 'No file provided. Please upload a CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
+
             uploaded_file = request.data['file']
             file_extension = uploaded_file.name.split('.')[-1]
             if file_extension.lower() != 'csv':
-                raise Exception("Invalid file format. Please upload a CSV file.")
+                return Response({'error': 'Invalid file format. Please upload a CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Get the file content from the uploaded file object
             file_content = uploaded_file.read().decode('utf-8')
 
-            # Pass the file content to csv_read function
+            # Pass the file content to the csv_read function
             data = csv_read(file_content)
 
-            # Ensure that the model and data file paths are correctly passed to the prediction function
+            # Construct model and data file paths
             model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
             excel_file_path = os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
 
@@ -113,6 +117,10 @@ class DataHandlingView(generics.CreateAPIView):
                 'data': data
             }, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except FileNotFoundError as fnf_error:
+            logger.error(f"File not found error: {fnf_error}")
+            return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
