@@ -1,7 +1,7 @@
 import gdown
 import os
 
-file_id = '1jFTayEKAzTltJkMeTNXgJcXi9-pbX4cZ'  # Your file ID
+file_id = '1jFTayEKAzTltJkMeTNXgJcXi9-pbX4cZ' 
 url = f"https://drive.google.com/uc?id={file_id}&confirm=t"
 output_path = os.path.join(os.path.dirname(__file__), 'userleader_app', 'models', 'best_rf_model.pkl')
 
