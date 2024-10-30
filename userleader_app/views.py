@@ -72,7 +72,9 @@ class ChangePasswordView(generics.CreateAPIView):
             return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+logger = logging.getLogger(__name__)
+
 class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -80,7 +82,7 @@ class DataHandlingView(generics.CreateAPIView):
 
     @swagger_auto_schema(operation_description='Upload file...')
     def post(self, request, *args, **kwargs):
-        logger.info(f"Request data: {request.data}")
+        logger.info("Received request for file handling.")
 
         try:
             # Ensure the file is present in the request
@@ -118,16 +120,13 @@ class DataHandlingView(generics.CreateAPIView):
             )
 
             # Return the result as a response
+            logger.info("File processed successfully.")
             return Response({
                 'compound_name': compound_name,
                 'explanation': explanation,
                 'data': data
             }, status=status.HTTP_200_OK)
 
-        except FileNotFoundError as fnf_error:
-            logger.error(f"File not found error: {fnf_error}")
-            return Response({'error': 'File not found. Please check your request.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("An error occurred while processing the file.")
+            return Response({'error': 'Internal server error. Please try again later.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
