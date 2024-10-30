@@ -2,28 +2,38 @@ from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .serializer import *
-from .models import *
+from .serializer import (
+    CustomUserSerializer,
+    MyTokenObtainPairSerializer,
+    LogoutSerializer,
+    ChangePasswordSerializer,
+    CSVSerializer
+)
+from .models import CustomUser
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
-import csv
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
 from .csv_read import csv_read
-from rest_framework_simplejwt.tokens import RefreshToken
-from .integrateModel import *
+from .integrateModel import predict_most_frequent_name
+from django.http import HttpResponse
+import os
 
-# Create your views here.
+# Add the index view function here
+def index(request):
+    return HttpResponse("Welcome to UserLeader App!")
 
+# Your existing views
 class CustomUserCreateView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = (AllowAny,)
 
-
 class SigninView(TokenObtainPairView):
     # Replace the serializer with your custom
     serializer_class = MyTokenObtainPairSerializer
-
 
 class LogoutView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -34,11 +44,9 @@ class LogoutView(generics.CreateAPIView):
             refresh_token = request.data.get("refresh_token")
             token = RefreshToken(refresh_token)
             token.blacklist()
-
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
-            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class ChangePasswordView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -62,7 +70,6 @@ class ChangePasswordView(generics.CreateAPIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -83,8 +90,8 @@ class DataHandlingView(generics.CreateAPIView):
             data = csv_read(file_content)
 
             # Ensure that the model and data file paths are correctly passed to the prediction function
-            model_path = os.path.join('models', 'best_rf_model.pkl')
-            excel_file_path = os.path.join('data', 'all_in_one.xlsx')
+            model_path = os.path.join('userleader_app', 'models', 'best_rf_model.pkl')
+            excel_file_path = os.path.join('userleader_app', 'data', 'all_in_one.xlsx')
 
             # Get the most frequent predicted compound name and the explanation
             compound_name, explanation = predict_most_frequent_name(
