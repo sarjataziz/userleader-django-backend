@@ -77,11 +77,6 @@ class ChangePasswordView(generics.CreateAPIView):
 
 logger = logging.getLogger(__name__)
 
-def load_model():
-    """Load the machine learning model from the specified path."""
-    model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
-    return joblib.load(model_path)
-
 class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -109,15 +104,21 @@ class DataHandlingView(generics.CreateAPIView):
             # Pass the file content to the csv_read function
             data = csv_read(file_content)
 
-            # Load the model
-            model = load_model()
+            # Construct model and data file paths
+            model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
+            excel_file_path = os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
+
+            # Check if model file exists
+            if not os.path.exists(model_path):
+                logger.error(f"Model file not found at: {model_path}")
+                return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             # Get the most frequent predicted compound name and the explanation
             compound_name, explanation = predict_most_frequent_name(
                 data["wavenumber"],
                 data["transmittance"],
-                model=model,  # Pass the loaded model
-                excel_file_path=os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
+                model_path=model_path,
+                excel_file_path=excel_file_path
             )
 
             # Return the result as a response
@@ -127,10 +128,6 @@ class DataHandlingView(generics.CreateAPIView):
                 'explanation': explanation,
                 'data': data
             }, status=status.HTTP_200_OK)
-
-        except FileNotFoundError as fnf_error:
-            logger.error(f"File not found error: {fnf_error}")
-            return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception("An error occurred while processing the file.")
