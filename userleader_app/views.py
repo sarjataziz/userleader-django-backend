@@ -23,6 +23,7 @@ import os
 import logging
 from rest_framework.response import Response
 from rest_framework import status
+import joblib
 
 # Add the index view function here
 def index(request):
@@ -73,7 +74,13 @@ class ChangePasswordView(generics.CreateAPIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 logger = logging.getLogger(__name__)
+
+def load_model():
+    """Load the machine learning model from the specified path."""
+    model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
+    return joblib.load(model_path)
 
 class DataHandlingView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -102,21 +109,15 @@ class DataHandlingView(generics.CreateAPIView):
             # Pass the file content to the csv_read function
             data = csv_read(file_content)
 
-            # Construct model and data file paths
-            model_path = os.path.join(os.path.dirname(__file__), 'models', 'best_rf_model.pkl')
-            excel_file_path = os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
-
-            # Check if model file exists
-            if not os.path.exists(model_path):
-                logger.error(f"Model file not found at: {model_path}")
-                return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Load the model
+            model = load_model()
 
             # Get the most frequent predicted compound name and the explanation
             compound_name, explanation = predict_most_frequent_name(
                 data["wavenumber"],
                 data["transmittance"],
-                model_path=model_path,
-                excel_file_path=excel_file_path
+                model=model,  # Pass the loaded model
+                excel_file_path=os.path.join(os.path.dirname(__file__), 'data', 'all_in_one.xlsx')
             )
 
             # Return the result as a response
@@ -126,6 +127,10 @@ class DataHandlingView(generics.CreateAPIView):
                 'explanation': explanation,
                 'data': data
             }, status=status.HTTP_200_OK)
+
+        except FileNotFoundError as fnf_error:
+            logger.error(f"File not found error: {fnf_error}")
+            return Response({'error': 'Model file not found. Please check the model path.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception("An error occurred while processing the file.")
