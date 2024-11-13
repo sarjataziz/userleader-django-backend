@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Ensure the logger is configured to output messages
 logging.basicConfig(level=logging.INFO)
 
+# CustomUser views
 class CustomUserCreateView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer

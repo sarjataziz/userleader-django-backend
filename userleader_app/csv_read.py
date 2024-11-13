@@ -81,6 +81,7 @@ def extract_y(data, row_number, y_index):
     else:
         return {}
 
+# Modify the header matching to be case-insensitive
 def csv_read(file_content):
     file_data = {}
     data = list(csv.reader(file_content.splitlines()))
@@ -115,3 +116,4 @@ def csv_read(file_content):
         raise ValueError("Unable to find required headers in the CSV file.")
 
     return file_data
+
