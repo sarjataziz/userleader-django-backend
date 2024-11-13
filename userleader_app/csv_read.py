@@ -3,6 +3,7 @@ import numpy as np
 import math
 import re
 
+<<<<<<< HEAD
 keywords = ['transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T',
             'absorbance', 'Absorbance', 'a', 'A', '(micromol/mol)-1m-1 (base 10)']
 x_header = ['cm-1', 'wavenumber', 'Wavenumber', '1/cm', 'cm^-1', 'micrometers', 'um', 'wavelength (um)',
@@ -10,12 +11,24 @@ x_header = ['cm-1', 'wavenumber', 'Wavenumber', '1/cm', 'cm^-1', 'micrometers', 
             'wavenumber (m-1)', 'wavenumber (m^-1)', 'Wavenumber (m-1)', 'Wavenumber (m^-1)', 'wavenumber (1/cm)',
             'Wavenumber (1/cm)',
             'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)']
+=======
+# Define keywords for transmittance and absorbance headers
+keywords = ['transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T',
+            'absorbance', 'Absorbance', 'a', 'A', '(micromol/mol)-1m-1 (base 10)']
+
+# Define keywords for wavenumber headers
+x_header = ['cm-1', 'wavenumber', 'Wavenumber', '1/cm', 'cm^-1', 'micrometers', 'um', 'wavelength (um)',
+            'nanometers', 'nm', 'wavelength (nm)', '1/m', 'm-1', 'm^-1', 'wavenumber (1/m)', 'Wavenumber (1/m)',
+            'wavenumber (m-1)', 'wavenumber (m^-1)', 'Wavenumber (m-1)', 'Wavenumber (m^-1)', 'wavenumber (1/cm)',
+            'Wavenumber (1/cm)', 'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)']
+>>>>>>> master
 
 def extract_x(data, row_number, x_index):
     # Extract X column data
     x_column_data = [row[x_index] for row in data[row_number:]]
 
     header_value = data[row_number - 1][x_index]
+<<<<<<< HEAD
     if header_value in (
             '1/cm', 'cm-1', 'cm^-1', 'wavenumber', 'Wavenumber', 'wavenumber (1/cm)', 'Wavenumber (1/cm)',
             'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)'):
@@ -25,6 +38,16 @@ def extract_x(data, row_number, x_index):
             # Remove any unwanted characters except digits, decimal points, minus signs, and spaces
             cleaned_str = re.sub(r'[^\d\.\-\s±]', '', value_str)
             try:
+=======
+    if header_value in ('1/cm', 'cm-1', 'cm^-1', 'wavenumber', 'Wavenumber', 'wavenumber (1/cm)', 'Wavenumber (1/cm)',
+                        'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)'):
+        x = []
+        for value in x_column_data:
+            value_str = value.strip()
+            cleaned_str = re.sub(r'[^\d\.\-\s±]', '', value_str)  # Remove unwanted characters
+            try:
+                # Handle '±' symbol
+>>>>>>> master
                 if '±' in cleaned_str:
                     base_value = cleaned_str.split('±')[0].strip()
                 else:
@@ -33,7 +56,25 @@ def extract_x(data, row_number, x_index):
             except ValueError:
                 raise ValueError(f"Unable to process wavenumber value: '{value_str}'")
         x_array = np.array(x)
+<<<<<<< HEAD
         return {'wavenumber': x_array.tolist()}
+=======
+        return {'wavenumber': x_array.tolist(), 'wavelengths': (10 ** 4 / x_array).tolist()}
+    
+    elif header_value in ('micrometers', 'um', 'wavelength (um)'):
+        x = np.array([float(value) for value in x_column_data])
+        return {'wavelengths': x.tolist(), 'wavenumber': (10 ** 4 / x).tolist()}
+    
+    elif header_value in ('nanometers', 'nm', 'wavelength (nm)'):
+        x = np.array([float(value) for value in x_column_data])
+        return {'wavelengths': x.tolist(), 'wavenumber': (10 ** 7 / x).tolist()}
+    
+    elif header_value in ('1/m', 'm-1', 'm^-1', 'wavenumber (1/m)', 'Wavenumber (1/m)',
+                          'wavenumber (m-1)', 'wavenumber (m^-1)', 'Wavenumber (m-1)', 'Wavenumber (m^-1)'):
+        x = np.array([float(value) for value in x_column_data]) * 100
+        return {'wavenumber': x.tolist(), 'wavelengths': (10 ** 4 / x).tolist()}
+    
+>>>>>>> master
     else:
         return {}
 
@@ -51,6 +92,7 @@ def extract_y(data, row_number, y_index):
             raise ValueError(f"Unable to process transmittance value: '{value_str}'")
     y_numeric = np.array(y)
 
+<<<<<<< HEAD
     if data[row_number - 1][y_index] in ('transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T'):
         # Ensure transmittance values are between 0 and 1
         y_numeric = np.clip(y_numeric, 0.0, 1.0)
@@ -76,6 +118,46 @@ def csv_read(file_content):
         if any(keyword in row for keyword in keywords):
             found_y = True
             y_index = row.index(next(keyword for keyword in keywords if keyword in row))
+=======
+    header_value = data[row_number - 1][y_index]
+    if header_value in ('transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T'):
+        # Ensure transmittance values are between 0 and 1
+        y_numeric = np.clip(y_numeric, 0.0, 1.0)
+        return {'transmittance': y_numeric.tolist()}
+    
+    elif header_value in ('absorbance', 'Absorbance', 'a', 'A'):
+        transmittance = 10 ** (-y_numeric)
+        return {'transmittance': transmittance.tolist(), 'absorbance': y_numeric.tolist()}
+    
+    elif header_value in ('(micromol/mol)-1m-1 (base 10)',):
+        return {'transmittance': (10 ** (-y_numeric)).tolist(), 'absorbance': y_numeric.tolist()}
+    
+    else:
+        return {}
+
+# Modify the header matching to be case-insensitive
+def csv_read(file_content):
+    file_data = {}
+    data = list(csv.reader(file_content.splitlines()))
+    found_x = False
+    found_y = False
+
+    # Convert header keywords to lowercase for case-insensitive matching
+    x_header_lower = [header.lower() for header in x_header]
+    keywords_lower = [header.lower() for header in keywords]
+
+    for row_number, row in enumerate(data, start=1):
+        # Strip whitespace and convert headers to lowercase
+        row_lower = [cell.strip().lower() for cell in row]
+
+        if any(keyword in row_lower for keyword in x_header_lower):
+            found_x = True
+            x_index = row_lower.index(next(keyword for keyword in x_header_lower if keyword in row_lower))
+
+        if any(keyword in row_lower for keyword in keywords_lower):
+            found_y = True
+            y_index = row_lower.index(next(keyword for keyword in keywords_lower if keyword in row_lower))
+>>>>>>> master
 
         if found_x and found_y:
             break
@@ -89,3 +171,7 @@ def csv_read(file_content):
         raise ValueError("Unable to find required headers in the CSV file.")
 
     return file_data
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
