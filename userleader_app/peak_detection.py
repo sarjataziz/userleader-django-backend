@@ -3,48 +3,28 @@ import numpy as np
 from scipy.signal import find_peaks
 
 def process_reference_data(reference_path, tolerance=0.10):
-<<<<<<< HEAD
-    reference = pd.read_excel(reference_path)
-=======
     # Read the reference Excel file
     reference = pd.read_excel(reference_path)
     
     # Check for the exact required columns
->>>>>>> master
     required_columns = ['Wavenumbers (cm-1)', 'Group']
     for col in required_columns:
         if col not in reference.columns:
             raise ValueError(f"Reference data must contain '{col}' column.")
     
-<<<<<<< HEAD
-    # Check if 'Chemical Name' column exists
-    has_chemical_name = 'Chemical Name' in reference.columns
-=======
     # Check if 'Compound Class' column exists
     has_compound_class = 'Compound Class' in reference.columns
->>>>>>> master
 
     centers = []
     lower_bounds = []
     upper_bounds = []
     groups = []
-<<<<<<< HEAD
-    chemical_names = []
-=======
     compound_classes = []
->>>>>>> master
 
     for _, row in reference.iterrows():
         wavenumber_value = row['Wavenumbers (cm-1)']
         group = row['Group']
-<<<<<<< HEAD
-        if has_chemical_name:
-            chemical_name = row['Chemical Name']
-        else:
-            chemical_name = ''
-=======
         compound_class = row['Compound Class'] if has_compound_class else ''
->>>>>>> master
 
         wavenumber_str = str(wavenumber_value).replace('cm-1', '').strip()
         try:
@@ -68,11 +48,7 @@ def process_reference_data(reference_path, tolerance=0.10):
             lower_bounds.append(low)
             upper_bounds.append(high)
             groups.append(group)
-<<<<<<< HEAD
-            chemical_names.append(chemical_name)
-=======
             compound_classes.append(compound_class)
->>>>>>> master
         except ValueError:
             print(f"Unable to process wavenumber value: {wavenumber_str}")
             continue
@@ -81,18 +57,9 @@ def process_reference_data(reference_path, tolerance=0.10):
         'Center': centers,
         'Lower Bound': lower_bounds,
         'Upper Bound': upper_bounds,
-<<<<<<< HEAD
-        'Group': groups
-    })
-    if has_chemical_name:
-        processed_reference['Chemical Name'] = chemical_names
-    else:
-        processed_reference['Chemical Name'] = [''] * len(processed_reference)
-=======
         'Group': groups,
         'Compound Class': compound_classes
     })
->>>>>>> master
 
     return processed_reference
 
@@ -126,11 +93,7 @@ def detect_peaks_and_match(wavenumbers, transmittance, reference_data):
                     'wavenumber': wavenumber,
                     'transmittance': transmittance_value,
                     'group': ref_row['Group'],
-<<<<<<< HEAD
-                    'chemical_name': ref_row['Chemical Name']
-=======
                     'compound_class': ref_row['Compound Class']
->>>>>>> master
                 })
         else:
             # Find the closest group
@@ -140,11 +103,7 @@ def detect_peaks_and_match(wavenumbers, transmittance, reference_data):
                 'wavenumber': wavenumber,
                 'transmittance': transmittance_value,
                 'group': closest_match['Group'] + ' (approximate)',
-<<<<<<< HEAD
-                'chemical_name': closest_match['Chemical Name']
-=======
                 'compound_class': closest_match['Compound Class']
->>>>>>> master
             })
 
     return pd.DataFrame(detected_peaks)
@@ -157,58 +116,35 @@ def generate_report(detected_peaks):
     for group_name, group_data in group_peaks:
         wavenumbers = group_data['wavenumber'].unique()
         wavenumber_list = ', '.join(f"{wn} cm-1" for wn in sorted(wavenumbers))
-
-<<<<<<< HEAD
-        chemical_names = group_data['chemical_name'].unique()
-        # Remove empty strings and duplicates
-        chemical_list = ', '.join(filter(None, chemical_names))
-
-        if 'approximate' in group_name:
-            if chemical_list:
-                line = f"The peak positions at {wavenumber_list} are approximately assigned to the {group_name} group found in {chemical_list}."
-=======
         compound_classes = group_data['compound_class'].unique()
         compound_list = ', '.join(filter(None, compound_classes))
 
         if 'approximate' in group_name:
             if compound_list:
                 line = f"The peak positions at {wavenumber_list} are approximately assigned to the {group_name} group found in {compound_list}."
->>>>>>> master
             else:
                 line = f"The peak positions at {wavenumber_list} are approximately assigned to the {group_name} group."
         elif group_name == 'Unknown':
             line = f"The peak positions at {wavenumber_list} do not match any known functional group."
         else:
-<<<<<<< HEAD
-            if chemical_list:
-                line = f"The peak positions at {wavenumber_list} represent the {group_name} group found in {chemical_list}."
-=======
             if compound_list:
                 line = f"The peak positions at {wavenumber_list} represent the {group_name} group found in {compound_list}."
->>>>>>> master
             else:
                 line = f"The peak positions at {wavenumber_list} represent the {group_name} group."
         report_lines.append(line)
 
     return report_lines
 
-def main():
+# Main function for testing
+if __name__ == '__main__':
     # Load user data
-<<<<<<< HEAD
-    user_file = 'file.csv'  # Replace with the actual user data file
-=======
-    user_file = './file.csv'  # Replace with the actual user data file
->>>>>>> master
+    user_file = './file.csv'  
     user_data = pd.read_csv(user_file)
     wavenumbers = user_data['wavenumber']
     transmittance = user_data['transmittance']
 
     # Process reference data
-<<<<<<< HEAD
-    reference_path = 'all_in_one.xlsx'  # Replace with your actual reference file path
-=======
-    reference_path = './userleader_app/data/Table-1.xlsx'  # Replace with your actual reference file path
->>>>>>> master
+    reference_path = './userleader_app/data/Table-1.xlsx'  
     reference_data = process_reference_data(reference_path)
 
     # Detect peaks and match to functional groups
@@ -220,6 +156,3 @@ def main():
     # Output the report
     for line in report:
         print(line)
-
-if __name__ == '__main__':
-    main()
