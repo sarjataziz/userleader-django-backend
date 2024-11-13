@@ -1,0 +1,16 @@
+# Ignore the large model file
+userleader_app/models/best_rf_model.pkl
+userleader_app/models/*.pkl
+
+# Ignore SQLite database files
+*.sqlite3
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore environment files
+.env
+
+# Ignore local data files if not needed in the repo
+userleader_app/data/
