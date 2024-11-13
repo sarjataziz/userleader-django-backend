@@ -180,4 +180,9 @@ class DataHandlingView(generics.CreateAPIView):
 
         except Exception as e:
             logger.exception("An unexpected error occurred.")
-            return Response({'error': f'Internal server error. Details: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({
+                'error': f'Internal server error. Details: {str(e)}',
+                'traceback': traceback.format_exc()
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
