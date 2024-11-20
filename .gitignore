@@ -13,4 +13,4 @@ __pycache__/
 .env
 
 # Ignore local data files if not needed in the repo
-userleader_app/data/
+#userleader_app/data/
