@@ -116,4 +116,3 @@ def csv_read(file_content):
         raise ValueError("Unable to find required headers in the CSV file.")
 
     return file_data
-
