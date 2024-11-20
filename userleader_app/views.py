@@ -24,8 +24,6 @@ import traceback
 
 # Initialize logger
 logger = logging.getLogger(__name__)
-
-# Ensure the logger is configured to output messages
 logging.basicConfig(level=logging.INFO)
 
 # CustomUser views
@@ -102,28 +100,25 @@ class DataHandlingView(generics.CreateAPIView):
 
             logger.info(f"File content preview: {file_content[:100]}")  # Log first 100 characters
 
+            # Use your csv_read function
             data = csv_read(file_content)
-            logger.info(f"CSV data processed successfully: {data}")
+            logger.info("CSV data processed successfully.")
 
             # Ensure necessary data is present
             if 'wavenumber' not in data or 'transmittance' not in data:
                 logger.error("CSV file missing 'wavenumber' or 'transmittance' data.")
-                raise ValueError("Uploaded file must contain 'wavenumber' and 'transmittance' data.")
+                return Response({'error': "Uploaded file must contain 'wavenumber' and 'transmittance' columns."}, status=status.HTTP_400_BAD_REQUEST)
 
             logger.info("Required data fields found in CSV.")
 
-            # Convert data to float
-            try:
-                data['wavenumber'] = [float(x) for x in data['wavenumber']]
-                data['transmittance'] = [float(x) for x in data['transmittance']]
-            except ValueError as ve:
-                logger.error(f"Data conversion error: {ve}")
-                return Response({'error': 'Data contains non-numeric values.'}, status=status.HTTP_400_BAD_REQUEST)
+            # Log the data for debugging
+            logger.debug(f"Data wavenumber: {data['wavenumber'][:5]}")  # Log first 5 entries
+            logger.debug(f"Data transmittance: {data['transmittance'][:5]}")  # Log first 5 entries
 
             # Path setup for model and reference data
             current_dir = os.path.dirname(os.path.abspath(__file__))
             model_path = os.path.join(current_dir, 'models', 'best_rf_model.pkl')
-            reference_path = os.path.join(current_dir, 'data', 'Table-1.xlsx')
+            reference_path = os.path.join(current_dir, 'data', 'IR_Correlation_Table_5000_to_250.xlsx')
 
             # Check if model and data files exist
             if not os.path.exists(model_path):
@@ -140,9 +135,21 @@ class DataHandlingView(generics.CreateAPIView):
             reference_data = process_reference_data(reference_path)
             logger.info("Reference data processed successfully.")
 
-            detected_peaks_df = detect_peaks_and_match(data['wavenumber'], data['transmittance'], reference_data)
-            peak_report = generate_report(detected_peaks_df)
-            logger.info("Peak detection completed.")
+            # Ensure the prominence parameter matches
+            detected_peaks_df = detect_peaks_and_match(
+                data['wavenumber'],
+                data['transmittance'],
+                reference_data,
+                prominence=0.02  # Match this with your peak_detection.py
+            )
+            logger.info(f"Detected peaks:\n{detected_peaks_df}")
+
+            if detected_peaks_df.empty:
+                logger.warning("No peaks were detected or matched to the reference data.")
+                peak_report = ["No peaks were detected or matched to the reference data."]
+            else:
+                peak_report = generate_report(detected_peaks_df)
+                logger.info("Peak detection completed successfully.")
 
             # Model prediction
             logger.info("Running model prediction.")
@@ -158,15 +165,13 @@ class DataHandlingView(generics.CreateAPIView):
                 logger.debug(traceback.format_exc())
                 return Response({'error': 'Error during compound prediction.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # Optimizing and formatting the response
+            # Prepare the response
             response_data = {
                 "compound_name": compound_name,
                 "peak_report": peak_report,
                 "data": {
                     "wavenumber": data["wavenumber"],
-                    "transmittance": data["transmittance"],
-                    "wavelengths": data.get("wavelengths", []),
-                    "absorbance": data.get("absorbance", [])
+                    "transmittance": data["transmittance"]
                 }
             }
 
