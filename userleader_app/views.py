@@ -15,12 +15,21 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
-from .csv_read import csv_read
-from .peak_detection import process_reference_data, detect_peaks_and_match, generate_report
+from .peak_detection import (
+    process_reference_data,
+    calculate_transmittance,
+    detect_peaks_and_match,
+    group_and_filter_peaks_dynamic,
+    generate_report
+)
 from .integrateModel import predict_most_frequent_name
 import os
 import logging
 import traceback
+import pandas as pd
+from io import StringIO
+import numpy as np  # Ensure numpy is imported
+from .csv_read import csv_read  # Import your csv_read module
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -100,20 +109,59 @@ class DataHandlingView(generics.CreateAPIView):
 
             logger.info(f"File content preview: {file_content[:100]}")  # Log first 100 characters
 
-            # Use your csv_read function
-            data = csv_read(file_content)
-            logger.info("CSV data processed successfully.")
+            # Read CSV using your custom csv_read function
+            try:
+                file_data = csv_read(file_content)
+                logger.debug(f"CSV data keys: {file_data.keys()}")
+
+                # Check for required data
+                if 'wavenumber' not in file_data or ('absorbance' not in file_data and 'transmittance' not in file_data):
+                    raise ValueError("Uploaded file must contain 'wavenumber' and 'absorbance' or 'transmittance' columns.")
+
+                # Ensure data arrays have the same length and collect valid indices
+                wavenumber = file_data['wavenumber']
+                logger.debug(f"wavenumber type: {type(wavenumber)}, length: {len(wavenumber)}")
+
+                if 'absorbance' in file_data:
+                    absorbance = file_data['absorbance']
+                    logger.debug(f"absorbance type: {type(absorbance)}, length: {len(absorbance)}")
+                    if len(wavenumber) != len(absorbance):
+                        raise ValueError("Data columns have mismatched lengths.")
+                    transmittance = (10 ** (-np.array(absorbance))) * 100
+                else:
+                    transmittance = file_data['transmittance']
+                    logger.debug(f"transmittance type: {type(transmittance)}, length: {len(transmittance)}")
+                    if len(wavenumber) != len(transmittance):
+                        raise ValueError("Data columns have mismatched lengths.")
+                    # Convert transmittance to absorbance
+                    transmittance_array = np.array(transmittance)
+                    absorbance = -np.log10(transmittance_array / 100)
+
+                data_df = pd.DataFrame({
+                    'wavenumber': wavenumber,
+                    'absorbance': absorbance,
+                    'transmittance': transmittance
+                })
+
+                data_df['wavenumber'] = pd.to_numeric(data_df['wavenumber'], errors='coerce')
+                data_df['absorbance'] = pd.to_numeric(data_df['absorbance'], errors='coerce')
+                data_df['transmittance'] = pd.to_numeric(data_df['transmittance'], errors='coerce')
+
+                data_df.dropna(subset=['wavenumber', 'absorbance', 'transmittance'], inplace=True)
+                data_df.sort_values(by='wavenumber', inplace=True)
+
+                logger.info("CSV data processed successfully.")
+
+            except Exception as e:
+                logger.error(f"Error processing CSV file: {e}")
+                return Response({'error': f'Error processing CSV file: {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Ensure necessary data is present
-            if 'wavenumber' not in data or 'transmittance' not in data:
-                logger.error("CSV file missing 'wavenumber' or 'transmittance' data.")
-                return Response({'error': "Uploaded file must contain 'wavenumber' and 'transmittance' columns."}, status=status.HTTP_400_BAD_REQUEST)
+            if data_df.empty:
+                logger.error("CSV file contains no valid data.")
+                return Response({'error': "Uploaded file contains no valid data."}, status=status.HTTP_400_BAD_REQUEST)
 
-            logger.info("Required data fields found in CSV.")
-
-            # Log the data for debugging
-            logger.debug(f"Data wavenumber: {data['wavenumber'][:5]}")  # Log first 5 entries
-            logger.debug(f"Data transmittance: {data['transmittance'][:5]}")  # Log first 5 entries
+            # Proceed with processing data_df
 
             # Path setup for model and reference data
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -135,28 +183,30 @@ class DataHandlingView(generics.CreateAPIView):
             reference_data = process_reference_data(reference_path)
             logger.info("Reference data processed successfully.")
 
-            # Ensure the prominence parameter matches
-            detected_peaks_df = detect_peaks_and_match(
-                data['wavenumber'],
-                data['transmittance'],
-                reference_data,
-                prominence=0.02  # Match this with your peak_detection.py
-            )
-            logger.info(f"Detected peaks:\n{detected_peaks_df}")
+            # Detect peaks and match
+            detected_peaks = detect_peaks_and_match(data_df, reference_data, prominence=0.005)
+            logger.info(f"Detected peaks:\n{detected_peaks}")
 
-            if detected_peaks_df.empty:
+            # Group and filter peaks
+            grouped_peaks = group_and_filter_peaks_dynamic(detected_peaks, group_by='Bond Type', sort_by='wavenumber')
+
+            if grouped_peaks.empty:
                 logger.warning("No peaks were detected or matched to the reference data.")
                 peak_report = ["No peaks were detected or matched to the reference data."]
             else:
-                peak_report = generate_report(detected_peaks_df)
+                # Get the user's choice for report type (Absorbance or Transmittance)
+                report_type = request.data.get('report_type', 'absorbance').lower()
+                if report_type not in ['absorbance', 'transmittance']:
+                    report_type = 'absorbance'
+                peak_report = generate_report(grouped_peaks, report_type=report_type)
                 logger.info("Peak detection completed successfully.")
 
             # Model prediction
             logger.info("Running model prediction.")
             try:
                 compound_name = predict_most_frequent_name(
-                    data["wavenumber"],
-                    data["transmittance"],
+                    data_df["wavenumber"].tolist(),
+                    data_df["absorbance"].tolist(),
                     model_path=model_path
                 )
                 logger.info(f"Model prediction completed successfully. Predicted compound name: {compound_name}")
@@ -170,8 +220,9 @@ class DataHandlingView(generics.CreateAPIView):
                 "compound_name": compound_name,
                 "peak_report": peak_report,
                 "data": {
-                    "wavenumber": data["wavenumber"],
-                    "transmittance": data["transmittance"]
+                    "wavenumber": data_df["wavenumber"].tolist(),
+                    "transmittance": data_df["transmittance"].tolist(),
+                    "absorbance": data_df["absorbance"].tolist()
                 }
             }
 
@@ -189,5 +240,3 @@ class DataHandlingView(generics.CreateAPIView):
                 'error': f'Internal server error. Details: {str(e)}',
                 'traceback': traceback.format_exc()
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-

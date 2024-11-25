@@ -1,7 +1,8 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.signal import find_peaks, savgol_filter
 import logging
+import matplotlib.pyplot as plt  
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -91,67 +92,71 @@ def process_reference_data(reference_path, tolerance=0.05):
 
     return processed_reference
 
-def detect_peaks_and_match(wavenumbers, transmittance, reference_data, prominence=0.02):
+def calculate_transmittance(data):
     """
-    Detects peaks in the transmittance data and matches them to the reference data.
+    Calculate Transmittance (%) from Absorbance.
 
     Args:
-        wavenumbers (list): List of wavenumbers from user data.
-        transmittance (list): List of transmittance values from user data.
-        reference_data (pd.DataFrame): Processed reference data.
-        prominence (float): Minimum prominence of peaks to detect.
+        data (pd.DataFrame): DataFrame with 'wavenumber' and 'absorbance'.
 
     Returns:
-        pd.DataFrame: DataFrame containing detected peaks and their matches.
+        pd.DataFrame: Updated DataFrame with 'transmittance'.
     """
-    data = pd.DataFrame({
-        'wavenumber': wavenumbers,
-        'transmittance': transmittance
-    })
+    data['transmittance'] = (10 ** (-data['absorbance'])) * 100
+    return data
 
-    # Validate data
-    if data['wavenumber'].isnull().any() or data['transmittance'].isnull().any():
-        raise ValueError("User data contains null values.")
+def detect_peaks_and_match(data, reference_data, prominence=0.005):
+    """
+    Detect peaks in Absorbance data and match to reference data.
 
-    # Sort data by wavenumber in ascending order for correct smoothing
-    data = data.sort_values(by='wavenumber')
+    Args:
+        data (pd.DataFrame): DataFrame with 'wavenumber' and 'absorbance'.
+        reference_data (pd.DataFrame): Processed reference data.
+        prominence (float): Prominence parameter for peak detection.
 
-    # Invert transmittance for peak detection (since peaks are minima in transmittance)
-    data['inverted_transmittance'] = 1 - data['transmittance']
+    Returns:
+        pd.DataFrame: Detected peaks with matching functional groups.
+    """
+    # Ensure data is sorted by wavenumber in ascending order
+    data = data.sort_values(by='wavenumber').reset_index(drop=True)
 
-    # Apply Savitzky-Golay filter for smoothing
-    try:
-        window_length = 11 if len(data) >= 11 else len(data) - (len(data) % 2 == 0)
-        if window_length < 5:
-            window_length = 5  # Minimum window length
-        data['smoothed_transmittance'] = savgol_filter(
-            data['inverted_transmittance'], window_length=window_length, polyorder=3
-        )
-    except Exception as e:
-        logger.error(f"Error during data smoothing: {e}")
-        raise Exception(f"Error during data smoothing: {e}")
+    # Smooth the absorbance data
+    window_length = 15 if len(data) >= 15 else len(data) - (len(data) % 2 == 0)
+    if window_length < 5:
+        window_length = 5  # Minimum window length
+    data['smoothed_absorbance'] = savgol_filter(
+        data['absorbance'], window_length=window_length, polyorder=3
+    )
 
-    # Detect peaks
-    peaks_indices, properties = find_peaks(data['smoothed_transmittance'], prominence=prominence)
-    peaks_data = data.iloc[peaks_indices][['wavenumber', 'transmittance']]
+    # Detect peaks in the smoothed absorbance data
+    peaks, properties = find_peaks(
+        data['smoothed_absorbance'],
+        prominence=prominence
+    )
+    peak_data = data.iloc[peaks].copy()
+    peak_data.reset_index(drop=True, inplace=True)
 
-    # Match peaks to reference data
-    detected_peaks = []
-    for _, peak in peaks_data.iterrows():
+    matched_peaks = []
+
+    for idx, peak in peak_data.iterrows():
         wavenumber = peak['wavenumber']
-        transmittance_value = peak['transmittance']
+        absorbance_value = peak['smoothed_absorbance']
 
-        # Check if the peak falls within any reference range
-        matched_entries = reference_data[
+        # Calculate transmittance for the peak
+        transmittance_value = 10 ** (-absorbance_value) * 100
+
+        # Match peak to reference data within the specified tolerance
+        matches = reference_data[
             (reference_data['Lower Bound'] <= wavenumber) &
             (wavenumber <= reference_data['Upper Bound'])
         ]
 
-        if not matched_entries.empty:
+        if not matches.empty:
             # Exact match: Add all matches within the range
-            for _, ref_row in matched_entries.iterrows():
-                detected_peaks.append({
+            for _, ref_row in matches.iterrows():
+                matched_peaks.append({
                     'wavenumber': wavenumber,
+                    'absorbance': absorbance_value,
                     'transmittance': transmittance_value,
                     'Bond Type': ref_row['Bond Type'],
                     'Functional Group': ref_row['Functional Group'],
@@ -161,26 +166,60 @@ def detect_peaks_and_match(wavenumbers, transmittance, reference_data, prominenc
             # Approximate match: Find the closest match outside the range
             reference_data['Distance'] = abs(reference_data['Center'] - wavenumber)
             closest_match = reference_data.loc[reference_data['Distance'].idxmin()]
-            detected_peaks.append({
+            matched_peaks.append({
                 'wavenumber': wavenumber,
+                'absorbance': absorbance_value,
                 'transmittance': transmittance_value,
                 'Bond Type': closest_match['Bond Type'] + ' (approximate)',
                 'Functional Group': closest_match['Functional Group'],
                 'Compound': closest_match['Compound']
             })
+            reference_data.drop(columns=['Distance'], inplace=True)
 
-    # Clean up temporary 'Distance' column if it exists
-    if 'Distance' in reference_data.columns:
-        reference_data.drop(columns=['Distance'], inplace=True)
+    matched_peaks_df = pd.DataFrame(matched_peaks)
 
-    return pd.DataFrame(detected_peaks)
+    return matched_peaks_df
 
-def generate_report(detected_peaks):
+def group_and_filter_peaks_dynamic(peaks, group_by='Bond Type', sort_by='wavenumber', top_n=6):
+    """
+    Dynamically group and filter detected peaks based on specified criteria.
+
+    Args:
+        peaks (pd.DataFrame): DataFrame containing detected peaks.
+        group_by (str): Column name to group peaks by.
+        sort_by (str): Column name to sort peaks within each group.
+        top_n (int or None): Number of top peaks to retain for each group. If None, all peaks are retained.
+
+    Returns:
+        pd.DataFrame: Filtered DataFrame with peaks grouped and sorted.
+    """
+    if peaks.empty:
+        return peaks
+
+    # Validate input parameters
+    if group_by not in peaks.columns:
+        raise ValueError(f"Grouping column '{group_by}' not found in the DataFrame.")
+    if sort_by not in peaks.columns:
+        raise ValueError(f"Sorting column '{sort_by}' not found in the DataFrame.")
+
+    # Group and sort peaks
+    grouped_peaks = peaks.groupby(group_by, group_keys=False).apply(
+        lambda group: group.sort_values(by=sort_by, ascending=True)
+    ).reset_index(drop=True)
+
+    if top_n is not None:
+        # Retain only top N peaks per group
+        grouped_peaks = grouped_peaks.groupby(group_by, group_keys=False).head(top_n)
+
+    return grouped_peaks
+
+def generate_report(detected_peaks, report_type='absorbance'):
     """
     Generates a report based on the detected peaks.
 
     Args:
         detected_peaks (pd.DataFrame): DataFrame containing detected peaks and their matches.
+        report_type (str): 'absorbance' or 'transmittance' to indicate which data to include.
 
     Returns:
         list: List of report lines.
@@ -190,9 +229,9 @@ def generate_report(detected_peaks):
 
     report_lines = []
 
-    # Group peaks by 'Bond Type' and sort wavenumbers
-    detected_peaks = detected_peaks.sort_values(by='wavenumber', ascending=False)
-    group_peaks = detected_peaks.groupby('Bond Type')
+    # Group peaks by 'Bond Type' and sort wavenumbers ascending
+    detected_peaks = detected_peaks.sort_values(by='wavenumber', ascending=True)
+    group_peaks = detected_peaks.groupby('Bond Type', sort=False)
 
     for bond_type, group_data in group_peaks:
         wavenumbers = group_data['wavenumber'].unique()
@@ -218,18 +257,50 @@ if __name__ == '__main__':
     user_file = './file.csv'   
     user_data = pd.read_csv(user_file)
     wavenumbers = user_data['wavenumber']
-    transmittance = user_data['transmittance']
+    absorbance = user_data['absorbance']
+
+    # Prepare data DataFrame
+    data_df = pd.DataFrame({
+        'wavenumber': wavenumbers,
+        'absorbance': absorbance
+    })
+
+    # Calculate Transmittance
+    data_df = calculate_transmittance(data_df)
 
     # Process reference data
     reference_path = './userleader_app/data/IR_Correlation_Table_5000_to_250.xlsx' 
     reference_data = process_reference_data(reference_path)
 
     # Detect peaks and match to functional groups
-    detected_peaks = detect_peaks_and_match(wavenumbers, transmittance, reference_data, prominence=0.02)
+    detected_peaks = detect_peaks_and_match(data_df, reference_data, prominence=0.005)
+
+    # Group and filter peaks
+    grouped_peaks = group_and_filter_peaks_dynamic(detected_peaks, group_by='Bond Type', sort_by='wavenumber')
 
     # Generate the report
-    report = generate_report(detected_peaks)
+    report = generate_report(grouped_peaks)
 
     # Output the report
     for line in report:
         print(line)
+
+    # Plotting Absorbance vs. Wavenumber
+    plt.figure(figsize=(10, 6))
+    plt.plot(data_df['wavenumber'], data_df['absorbance'], label='Absorbance')
+    plt.xlabel('Wavenumber (cm⁻¹)')
+    plt.ylabel('Absorbance')
+    plt.title('Absorbance vs. Wavenumber')
+    plt.legend()
+    plt.gca().invert_xaxis()  
+    plt.show()
+
+    # Plotting Transmittance vs. Wavenumber
+    plt.figure(figsize=(10, 6))
+    plt.plot(data_df['wavenumber'], data_df['transmittance'], label='Transmittance', color='red')
+    plt.xlabel('Wavenumber (cm⁻¹)')
+    plt.ylabel('Transmittance (%)')
+    plt.title('Transmittance vs. Wavenumber')
+    plt.legend()
+    plt.gca().invert_xaxis()  
+    plt.show()
