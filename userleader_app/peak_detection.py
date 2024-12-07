@@ -253,7 +253,6 @@ if __name__ == '__main__':
     # Configure logging
     logging.basicConfig(level=logging.INFO)
 
-    # Load user data (replace with actual file paths)
     user_file = './file.csv'   
     user_data = pd.read_csv(user_file)
     wavenumbers = user_data['wavenumber']
