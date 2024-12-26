@@ -28,8 +28,8 @@ import logging
 import traceback
 import pandas as pd
 from io import StringIO
-import numpy as np  # Ensure numpy is imported
-from .csv_read import csv_read  # Import your csv_read module
+import numpy as np  
+from .csv_read import csv_read 
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ class DataHandlingView(generics.CreateAPIView):
 
             logger.info(f"File content preview: {file_content[:100]}")  # Log first 100 characters
 
-            # Read CSV using your custom csv_read function
+            # Read CSV using custom csv_read function
             try:
                 file_data = csv_read(file_content)
                 logger.debug(f"CSV data keys: {file_data.keys()}")
@@ -160,8 +160,6 @@ class DataHandlingView(generics.CreateAPIView):
             if data_df.empty:
                 logger.error("CSV file contains no valid data.")
                 return Response({'error': "Uploaded file contains no valid data."}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Proceed with processing data_df
 
             # Path setup for model and reference data
             current_dir = os.path.dirname(os.path.abspath(__file__))
