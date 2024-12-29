@@ -1,4 +1,4 @@
-## README: IR Spectrum Peak Detection and Functional Group Analysis
+## Userleader App (Backend): IR Spectrum Peak Detection and Functional Group Analysis
 
 ### Overview
 
@@ -7,7 +7,7 @@ This project is designed to detect peaks in an IR spectrum, correlate detected p
 ### Project Structure
 
 ```
-userleader_backend/
+userleader_backend
 ├── userleader_app/
 │   ├── __init__.py
 │   ├── admin.py
@@ -31,7 +31,7 @@ userleader_backend/
 ### Features
 
 1. **CSV File Parsing**:
-   - Reads user-uploaded ``` CSV, ASP, JDX, SPE, SAP ``` files containing IR spectral data.
+   - Reads user-uploaded ``` CSV ``` files containing IR spectral data.
    - Supports both absorbance and transmittance data formats.
    - Ensures consistent data formatting by handling errors in input, including:
      - Detecting missing or mismatched column headers.
@@ -41,10 +41,10 @@ userleader_backend/
 
 2. **Peak Detection**:
    - Uses the **Savitzky-Golay** filter to smooth absorbance data.
-   - Detects peaks using the `find_peaks` function from `scipy.signal`.
+   - Detects peaks using the `find_peaks` function and also use ```savgol_filter``` from `scipy.signal`.
 
 3. **Reference Spectrum Matching**:
-   - Matches detected peaks with reference functional groups in a reference dataset (Excel file).
+   - Matches detected peaks with reference functional groups in a reference dataset (IR_Correlation_Table_5000_to_250.xlsx).
    - Implements a dynamic grouping and filtering mechanism to extract relevant peaks.
 
 4. **Machine Learning Prediction**:
@@ -58,14 +58,14 @@ userleader_backend/
 ### Workflow
 
 1. **Data Upload**:
-   - Users upload an IR spectrum ``` CSV, ASP, JDX, SPE, SAP ``` file via an API.
+   - Users upload an IR spectrum ``` CSV ``` file via an API.
    - The file must contain wavenumber and either absorbance or transmittance data.
 
 2. **Data Preprocessing**:
    - The `csv_read.py` script extracts and validates wavenumber and absorbance/transmittance columns.
    - Converts transmittance to absorbance (if needed) using the formula:
 
-     \[ Absorbance = -log10(Transmittance / 100) \] <br> or <br>
+     \[ Absorbance = -log10(Transmittance / 100) \] <br> or, <br>
       [ Transmittance = 10^(-A) / 100 ]
 
 3. **Reference Data Processing**:
@@ -73,7 +73,7 @@ userleader_backend/
    - Parses wavenumber ranges and calculates tolerances for matching.
 
 4. **Peak Detection**:
-   - Smooths the absorbance data using the Savitzky-Golay filter.
+   - Smooths the absorbance data using the **Savitzky-Golay** filter.
    - Detects peaks based on prominence and wavenumber alignment.
 
 5. **Functional Group Matching**:
@@ -177,9 +177,5 @@ userleader_backend/
 
 ### Conclusion
 
-This system seamlessly integrates reference-based peak matching with machine learning predictions to provide a comprehensive analysis of IR spectra. Future enhancements could include:
-
-- Supporting additional spectral data formats.
-- Real-time visualization of spectra and peaks.
-- Improving model accuracy by incorporating updated reference datasets and advanced machine learning techniques.
+This system seamlessly integrates reference-based peak matching with machine learning predictions to provide a comprehensive analysis of IR spectra. 
 
