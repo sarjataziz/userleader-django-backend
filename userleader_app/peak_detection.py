@@ -105,6 +105,19 @@ def calculate_transmittance(data):
     data['transmittance'] = (10 ** (-data['absorbance'])) * 100
     return data
 
+def calculate_absorbance(data):
+    """
+    Calculate Absorbance from Transmittance.
+
+    Args:
+        data (pd.DataFrame): DataFrame with 'wavenumber' and 'transmittance'.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with 'absorbance'.
+    """
+    data['absorbance'] = -np.log10(data['transmittance'] / 100)
+    return data
+
 def detect_peaks_and_match(data, reference_data, prominence=0.005):
     """
     Detect peaks in Absorbance data and match to reference data.
@@ -256,17 +269,14 @@ if __name__ == '__main__':
     # Load user data
     user_file = './file.csv'   
     user_data = pd.read_csv(user_file)
-    wavenumbers = user_data['wavenumber']
-    absorbance = user_data['absorbance']
 
-    # Prepare data DataFrame
-    data_df = pd.DataFrame({
-        'wavenumber': wavenumbers,
-        'absorbance': absorbance
-    })
-
-    # Calculate Transmittance
-    data_df = calculate_transmittance(data_df)
+    # Check and calculate missing values
+    if 'absorbance' not in user_data.columns and 'transmittance' in user_data.columns:
+        data_df = calculate_absorbance(user_data)
+    elif 'transmittance' not in user_data.columns and 'absorbance' in user_data.columns:
+        data_df = calculate_transmittance(user_data)
+    else:
+        raise ValueError("Input data must contain either 'absorbance' or 'transmittance', but not both.")
 
     # Process reference data
     reference_path = './userleader_app/data/IR_Correlation_Table_5000_to_250.xlsx' 
