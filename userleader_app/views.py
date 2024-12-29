@@ -18,6 +18,7 @@ from drf_yasg.utils import swagger_auto_schema
 from .peak_detection import (
     process_reference_data,
     calculate_transmittance,
+    calculate_absorbance,
     detect_peaks_and_match,
     group_and_filter_peaks_dynamic,
     generate_report
@@ -28,7 +29,7 @@ import logging
 import traceback
 import pandas as pd
 from io import StringIO
-import numpy as np  
+import numpy as np
 from .csv_read import csv_read 
 
 # Initialize logger
