@@ -138,7 +138,7 @@ userleader_backend
 
 1. **Transmittance to Absorbance Conversion**:
    ```math
-   A = -\log_{10}(Transmittance / 100)
+   Absorbance = -\log_{10}(Transmittance / 100)
    ```
 
 2. **Absorbance to Transmittance Conversion**:
