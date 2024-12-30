@@ -69,8 +69,17 @@ The frontend accepts uploaded CSV files and displays the resulting plots (Absorb
    - Supported columns:
      - `wavenumber`
      - `absorbance` or `transmittance`
+2. **CSV File Parsing**:
+   - Reads user-uploaded CSV files containing IR spectral data.
+   - Supports both absorbance and transmittance data formats.
+   - Ensures consistent data formatting by handling errors in input, including:
+     - Detecting missing or mismatched column headers.
+     - Validating and cleaning numerical data by removing non-numeric characters and handling edge cases (e.g., empty or incomplete rows).
+     - Converting all data to a uniform numerical format to ensure compatibility with downstream processing.
+     - Dynamically parsing mixed headers and inferring data relationships even when unconventional headers are used.
 
-2. **Data Preprocessing**:
+
+3. **Data Preprocessing**:
    - If `absorbance` is provided, `transmittance` is calculated:
      ```math
      T = 10^{-A} \times 100
@@ -80,18 +89,19 @@ The frontend accepts uploaded CSV files and displays the resulting plots (Absorb
      A = -\log_{10}(T/100)
      ```
 
-3. **Peak Detection**:
-   - Peaks are detected using the Savitzky-Golay filter and `scipy.signal.find_peaks`.
-   - Prominence-based filtering ensures accurate detection.
+4. **Peak Detection**:
+   - Uses the **Savitzky-Golay** filter to smooth absorbance data.
+   - Detects peaks using the `find_peaks` function and also `savgol_filter` from `scipy.signal`.
 
-4. **Reference Spectrum Matching**:
-   - Peaks are matched to a reference spectrum using wavenumber ranges or tolerances.
-   - Matches are categorized as exact or approximate.
+5. **Reference Spectrum Matching**:
+   - Matches detected peaks with reference functional groups in a reference dataset (`IR_Correlation_Table_5000_to_250.xlsx`).
+   - Implements a dynamic grouping and filtering mechanism to extract relevant peaks.
 
-5. **Model Prediction**:
-   - The most probable compound is predicted using a trained Random Forest model.
+6. **Model Prediction**:
+   - Utilizes a pre-trained Random Forest model to predict the compound name based on the spectrum.
+   - Scales data and ensures compatibility with the model.
 
-6. **Reporting**:
+7. **Reporting**:
    - The peak detection report categorizes detected peaks by bond type and functional groups.
    - The final compound prediction is returned.
 
@@ -121,34 +131,6 @@ userleader_backend
 ├── templates/
 ```
 
----
-
-## Features
-
-1. **CSV File Parsing**:
-   - Reads user-uploaded CSV files containing IR spectral data.
-   - Supports both absorbance and transmittance data formats.
-   - Ensures consistent data formatting by handling errors in input, including:
-     - Detecting missing or mismatched column headers.
-     - Validating and cleaning numerical data by removing non-numeric characters and handling edge cases (e.g., empty or incomplete rows).
-     - Converting all data to a uniform numerical format to ensure compatibility with downstream processing.
-     - Dynamically parsing mixed headers and inferring data relationships even when unconventional headers are used.
-
-2. **Peak Detection**:
-   - Uses the **Savitzky-Golay** filter to smooth absorbance data.
-   - Detects peaks using the `find_peaks` function and also `savgol_filter` from `scipy.signal`.
-
-3. **Reference Spectrum Matching**:
-   - Matches detected peaks with reference functional groups in a reference dataset (`IR_Correlation_Table_5000_to_250.xlsx`).
-   - Implements a dynamic grouping and filtering mechanism to extract relevant peaks.
-
-4. **Machine Learning Prediction**:
-   - Utilizes a pre-trained Random Forest model to predict the compound name based on the spectrum.
-   - Scales data and ensures compatibility with the model.
-
-5. **Report Generation**:
-   - Provides a detailed summary of detected peaks, functional groups, and predicted compound names.
-   - Allows users to choose between absorbance or transmittance-based reporting.
 
 ---
 
