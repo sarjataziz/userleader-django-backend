@@ -98,7 +98,7 @@ The frontend accepts uploaded CSV files and displays the resulting plots (Absorb
    - Implements a dynamic grouping and filtering mechanism to extract relevant peaks.
 
 6. **Model Prediction**:
-   - Utilizes a pre-trained Random Forest model to predict the compound name based on the spectrum.
+   - Utilizes a **pre-trained Random Forest model** to predict the compound name based on the spectrum.
    - Scales data and ensures compatibility with the model.
 
 7. **Reporting**:
@@ -153,7 +153,10 @@ userleader_backend
      ```
    - For uncertainty:
      ```math
-     Low = Center - Uncertainty, High = Center + Uncertainty
+     Low = Center - Uncertainty, 
+     ```
+     ```math
+     High = Center + Uncertainty
      ```
 
 ---
@@ -171,9 +174,7 @@ userleader_backend
 3. **Interdependence**:
    - Changing the reference spectrum affects peak detection and functional group matching.
    - Example: Removing a functional group (e.g., hydroxyl) from the reference spectrum could lead to incorrect model predictions for compounds containing that group.
-
 ---
-
 ## Steps to Update Reference Spectrum
 
 1. Update `IR_Correlation_Table_5000_to_250.xlsx` with new wavenumber ranges, bond types, and functional groups.
@@ -194,11 +195,11 @@ userleader_backend
    - Example: If the reference spectrum lacks key functional groups or contains outdated wavenumber ranges, it may lead to mismatches or false negatives in the detection process.
 
 3. **Model Generalization**:
-   - The pre-trained model is optimized for specific training data and may fail to generalize well to compounds or spectra outside its training set.
+   - The **pre-trained model** is optimized for specific training data and may fail to generalize well to compounds or spectra outside its training set.
    - Example: A novel compound with unique spectral features not represented in the training data could result in an inaccurate or uncertain prediction.
 
 4. **Complex Mixtures**:
-   - This system is primarily designed for analyzing single-compound spectra and may face challenges when dealing with overlapping peaks in mixtures.
+   - This system is primarily designed for analyzing **single-compound spectra** and may face challenges when dealing with overlapping peaks in mixtures.
    - Example: A spectrum containing two compounds with overlapping wavenumber ranges may lead to ambiguous peak assignments, reducing prediction accuracy.
 ---
 ## API Endpoints
