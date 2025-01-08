@@ -7,7 +7,7 @@ url = "https://huggingface.co/sarjat/best_rf_model/resolve/main/best_rf_model.pk
 # Path to save the downloaded model
 output_path = os.path.join(os.path.dirname(__file__), 'userleader_app', 'models', 'best_rf_model.pkl')
 
-# Directly assign the token (local testing)
+# Directly assign the token
 hf_token = "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"
 
 def download_file(url, output_path, token):
