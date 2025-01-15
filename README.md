@@ -33,7 +33,7 @@ This project is designed to detect peaks in an IR spectrum, correlate detected p
 
 ### Prerequisites
 - Python 3.10+
-- Django 3.4+
+- Django 5.0+
 - Required Python packages (listed in `requirements.txt`)
 
 ### Steps
