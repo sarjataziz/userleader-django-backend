@@ -270,13 +270,20 @@ if __name__ == '__main__':
     user_file = './file.csv'   
     user_data = pd.read_csv(user_file)
 
-    # Check and calculate missing values
-    if 'absorbance' not in user_data.columns and 'transmittance' in user_data.columns:
-        data_df = calculate_absorbance(user_data)
-    elif 'transmittance' not in user_data.columns and 'absorbance' in user_data.columns:
+    # Check and ensure both columns are available
+    if 'absorbance' in user_data.columns and 'transmittance' not in user_data.columns:
+        logging.info("Transmittance not found. Calculating it from absorbance.")
         data_df = calculate_transmittance(user_data)
+    elif 'transmittance' in user_data.columns and 'absorbance' not in user_data.columns:
+        logging.info("Absorbance not found. Calculating it from transmittance.")
+        data_df = calculate_absorbance(user_data)
+    elif 'absorbance' in user_data.columns and 'transmittance' in user_data.columns:
+        logging.info("Both 'absorbance' and 'transmittance' columns found. Using both.")
+        data_df = user_data 
     else:
-        raise ValueError("Input data must contain either 'absorbance' or 'transmittance', but not both.")
+        raise ValueError("Input data must contain at least one of 'absorbance' or 'transmittance'.")
+
+
 
     # Process reference data
     reference_path = './userleader_app/data/IR_Correlation_Table_5000_to_250.xlsx' 
@@ -297,7 +304,7 @@ if __name__ == '__main__':
 
     # Plotting Absorbance vs. Wavenumber
     plt.figure(figsize=(10, 6))
-    plt.plot(data_df['wavenumber'], data_df['absorbance'], label='Absorbance')
+    plt.plot(data_df['wavenumber'], data_df['absorbance'], label='Absorbance', color='blue')
     plt.xlabel('Wavenumber (cm⁻¹)')
     plt.ylabel('Absorbance')
     plt.title('Absorbance vs. Wavenumber')
