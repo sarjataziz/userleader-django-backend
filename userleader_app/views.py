@@ -219,15 +219,20 @@ class DataHandlingView(generics.CreateAPIView):
             try:
                 reference_df = pd.read_excel(reference_path)
                 reference_compounds = set(reference_df['Name'].dropna().str.lower())
-                if compound_name.lower() not in reference_compounds:
-                    compound_name = "Compound name isn't in the model database."
+                if compound_name.lower() in reference_compounds:
+                    message = "match with model dataset"
+                else:
+                    message = "Don't match with model dataset"
+                    compound_name = ""  # Set to empty string if not matched
             except Exception as e:
                 logger.error(f"Error processing reference dataset for compound check: {e}")
-                compound_name = "Compound name isn't in the model database."
+                message = "Don't match with model dataset"
+                compound_name = ""
 
             # Prepare the response
             response_data = {
                 "compound_name": compound_name,
+                "message": message,
                 "peak_report": peak_report,
                 "data": {
                     "wavenumber": data_df["wavenumber"].tolist(),
