@@ -165,6 +165,7 @@ class DataHandlingView(generics.CreateAPIView):
             # Path setup for model and reference data
             current_dir = os.path.dirname(os.path.abspath(__file__))
             model_path = os.path.join(current_dir, 'models', 'best_rf_model.pkl')
+            # Corrected reference file name
             reference_path = os.path.join(current_dir, 'data', 'IR_Correlation_Table_5000_to_250.xlsx')
 
             # Check if model and data files exist
@@ -213,6 +214,16 @@ class DataHandlingView(generics.CreateAPIView):
                 logger.error(f"Error during compound prediction: {e}")
                 logger.debug(traceback.format_exc())
                 return Response({'error': 'Error during compound prediction.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # New logic: Check if the predicted compound exists in the reference dataset
+            try:
+                reference_df = pd.read_excel(reference_path)
+                reference_compounds = set(reference_df['Name'].dropna().str.lower())
+                if compound_name.lower() not in reference_compounds:
+                    compound_name = "Compound name isn't in the model database."
+            except Exception as e:
+                logger.error(f"Error processing reference dataset for compound check: {e}")
+                compound_name = "Compound name isn't in the model database."
 
             # Prepare the response
             response_data = {
