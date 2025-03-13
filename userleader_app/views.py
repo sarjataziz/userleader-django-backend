@@ -1,3 +1,21 @@
+#!/usr/bin/env python
+import os, sys
+
+# When running this file directly, set __package__ so relative imports work.
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    __package__ = "userleader_app"
+
+# Add the project root to the Python path so that "userleader_backend.settings" can be found.
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Set the DJANGO_SETTINGS_MODULE environment variable and setup Django.
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "userleader_backend.settings")
+import django
+django.setup()
+
 from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -24,7 +42,6 @@ from .peak_detection import (
     generate_report
 )
 from .integrateModel import predict_most_frequent_name
-import os
 import logging
 import traceback
 import pandas as pd
