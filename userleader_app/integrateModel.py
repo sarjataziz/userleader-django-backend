@@ -60,9 +60,19 @@ def predict_most_frequent_name(wavenumbers, transmittance, model_path=None):
             'wavenumbers': 'Wavenumber',
             'transmittance': 'Transmittance'
         }, inplace=True)
-
-        # Prepare data for prediction
-        X_new_model = data_scaled[['Wavenumber', 'Transmittance']]
+        
+        # Compute the first derivative (gradient) of the transmittance
+        data_scaled["gradient_transmittance"] = np.gradient(data_scaled["Transmittance"])
+        # Compute the second derivative (curvature) of the transmittance
+        data_scaled["curvature_transmittance"] = np.gradient(data_scaled["gradient_transmittance"])
+        # Create scaled features matching those used during model training
+        data_scaled["scaled_wavenumbers"] = data_scaled["Wavenumber"]
+        data_scaled["scaled_transmittance"] = data_scaled["Transmittance"]
+        # Prepare data for prediction with the correct feature order
+        X_new_model = data_scaled[['curvature_transmittance', 'gradient_transmittance', 'scaled_transmittance', 'scaled_wavenumbers']]
+        
+        if hasattr(model, "feature_names_in_"):
+            X_new_model = X_new_model.reindex(columns=model.feature_names_in_)
 
         # Make predictions
         logger.info("Making predictions.")
