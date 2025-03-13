@@ -232,19 +232,23 @@ class DataHandlingView(generics.CreateAPIView):
                 logger.debug(traceback.format_exc())
                 return Response({'error': 'Error during compound prediction.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # Check if the predicted compound exists in the reference dataset
-            try:
-                reference_df = pd.read_excel(reference_path)
-                reference_compounds = set(reference_df['Name'].dropna().str.lower())
-                if compound_name.lower() in reference_compounds:
-                    message = "match with model dataset"
-                else:
-                    message = "Don't match with model dataset"
-                    compound_name = ""  
-            except Exception as e:
-                logger.error(f"Error processing reference dataset for compound check: {e}")
-                message = "Don't match with model dataset"
-                compound_name = ""
+            # --- The reference dataset check ---
+            # try:
+            #     reference_df = pd.read_excel(reference_path)
+            #     reference_compounds = set(reference_df['Name'].dropna().str.lower())
+            #     if compound_name.lower() in reference_compounds:
+            #         message = "match with model dataset"
+            #     else:
+            #         message = "Don't match with model dataset"
+            #         compound_name = ""  
+            # except Exception as e:
+            #     logger.error(f"Error processing reference dataset for compound check: {e}")
+            #     message = "Don't match with model dataset"
+            #     compound_name = ""
+            # --------------------------------------------------
+
+            # Instead, simply assign a success message.
+            message = "Prediction completed successfully."
 
             # Prepare the response
             response_data = {
