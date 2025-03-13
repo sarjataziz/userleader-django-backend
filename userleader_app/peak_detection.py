@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # Initialize logger
 logger = logging.getLogger(__name__)
 
-def process_reference_data(reference_path, tolerance=0.05):
+def process_reference_data(reference_path, tolerance=0.10):
     """
     Processes the reference data from the given Excel file.
 
