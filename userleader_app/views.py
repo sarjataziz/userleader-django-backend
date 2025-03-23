@@ -247,7 +247,7 @@ class DataHandlingView(generics.CreateAPIView):
             #     compound_name = ""
             # --------------------------------------------------
 
-            # Instead, simply assign a success message.
+            # Show message.
             message = "Prediction completed successfully."
 
             # Prepare the response
