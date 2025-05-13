@@ -1,17 +1,15 @@
-
 import csv
 import numpy as np
-import math
 import re
 
-# Define extended keywords for transmittance and absorbance headers
+# Extended keywords for transmittance and absorbance headers
 keywords = [
     'transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T',
     'absorbance', 'Absorbance', 'a', 'A', '(micromol/mol)-1m-1 (base 10)',
     '%T', '%t', 'Percent Transmittance', 'percentT'
 ]
 
-# Define extended keywords for wavenumber headers
+# Extended keywords for wavenumber headers
 x_header = [
     'cm-1', 'wavenumber', 'Wavenumber', '1/cm', 'cm^-1', 'micrometers', 'um', 'wavelength (um)',
     'nanometers', 'nm', 'wavelength (nm)', '1/m', 'm-1', 'm^-1', 'wavenumber (1/m)', 'Wavenumber (1/m)',
@@ -32,8 +30,6 @@ def extract_x(data, row_number, x_index):
                     x.append(float(base_value))
                 except ValueError:
                     continue
-        else:
-            continue
     if not x:
         raise ValueError("No valid wavenumber data found.")
     x_array = np.array(x)
@@ -49,8 +45,6 @@ def extract_y(data, row_number, y_index):
                     y.append(float(value))
                 except ValueError:
                     continue
-        else:
-            continue
     if not y:
         raise ValueError("No valid transmittance or absorbance data found.")
     y_numeric = np.array(y)
@@ -84,33 +78,34 @@ def csv_read(file_content):
                 if not found_x and any(keyword in cell for keyword in x_header_lower):
                     x_index = i
                     found_x = True
-                if not found_y and any(keyword in cell for keyword in keywords_lower):
+                elif not found_y and any(keyword in cell for keyword in keywords_lower):
                     y_index = i
                     found_y = True
 
-            if found_x and found_y:
+            if found_x and found_y and x_index != y_index:
                 break
 
-        if found_x and found_y:
-            x_data = extract_x(data, row_number, x_index)
-            y_data = extract_y(data, row_number, y_index)
-            file_data.update(x_data)
-            file_data.update(y_data)
-
-            min_length = min(len(x_data['wavenumber']), len(y_data.get('absorbance', y_data.get('transmittance', []))))
-            if min_length == 0:
-                raise ValueError("No valid data found in both wavenumber and transmittance/absorbance columns.")
-            x_data['wavenumber'] = x_data['wavenumber'][:min_length]
-            x_data['wavelengths'] = x_data['wavelengths'][:min_length]
-            if 'absorbance' in y_data:
-                y_data['absorbance'] = y_data['absorbance'][:min_length]
-                y_data['transmittance'] = y_data['transmittance'][:min_length]
-            else:
-                y_data['transmittance'] = y_data['transmittance'][:min_length]
-            file_data.update(x_data)
-            file_data.update(y_data)
-        else:
+        if not found_x or not found_y:
             raise ValueError("Unable to find required headers in the CSV file.")
+        if x_index == y_index:
+            raise ValueError("Wavenumber and transmittance/absorbance columns cannot be the same.")
+
+        x_data = extract_x(data, row_number, x_index)
+        y_data = extract_y(data, row_number, y_index)
+        file_data.update(x_data)
+        file_data.update(y_data)
+
+        min_length = min(len(x_data['wavenumber']), len(y_data.get('absorbance', y_data.get('transmittance', []))))
+        if min_length == 0:
+            raise ValueError("No valid data found in both wavenumber and transmittance/absorbance columns.")
+
+        file_data['wavenumber'] = file_data['wavenumber'][:min_length]
+        file_data['wavelengths'] = file_data['wavelengths'][:min_length]
+        if 'absorbance' in file_data:
+            file_data['absorbance'] = file_data['absorbance'][:min_length]
+            file_data['transmittance'] = file_data['transmittance'][:min_length]
+        else:
+            file_data['transmittance'] = file_data['transmittance'][:min_length]
 
     except Exception as e:
         raise ValueError(f"Failed to parse CSV file: {str(e)}")
