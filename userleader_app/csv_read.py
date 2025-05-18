@@ -74,21 +74,24 @@ def csv_read(file_content):
         for row_number, row in enumerate(data, start=1):
             row_lower = [cell.strip().lower() for cell in row]
 
-            for i, cell in enumerate(row_lower):
-                if not found_x and any(keyword in cell for keyword in x_header_lower):
-                    x_index = i
-                    found_x = True
-                elif not found_y and any(keyword in cell for keyword in keywords_lower):
-                    y_index = i
-                    found_y = True
+            x_matches = [i for i, cell in enumerate(row_lower) if any(keyword in cell for keyword in x_header_lower)]
+            y_matches = [i for i, cell in enumerate(row_lower) if any(keyword in cell for keyword in keywords_lower)]
 
-            if found_x and found_y and x_index != y_index:
+            if x_matches:
+                x_index = x_matches[0]
+                found_x = True
+            if y_matches:
+                # Pick the first that is not same as x_index
+                y_index = y_matches[0] if x_matches[0] != y_matches[0] else (y_matches[1] if len(y_matches) > 1 else -1)
+                found_y = y_index != -1
+
+            if found_x and found_y:
                 break
 
         if not found_x or not found_y:
             raise ValueError("Unable to find required headers in the CSV file.")
-        if x_index == y_index:
-            raise ValueError("Wavenumber and transmittance/absorbance columns cannot be the same.")
+        if x_index == y_index or x_index == -1 or y_index == -1:
+            raise ValueError("Wavenumber and transmittance/absorbance columns cannot be the same or undefined.")
 
         x_data = extract_x(data, row_number, x_index)
         y_data = extract_y(data, row_number, y_index)
