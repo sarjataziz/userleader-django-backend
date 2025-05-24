@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 import os, sys
 
-# When running this file directly, set __package__ so relative imports work.
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     __package__ = "userleader_app"
 
-# Add the project root to the Python path so that "userleader_backend.settings" can be found.
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Set the DJANGO_SETTINGS_MODULE environment variable and setup Django.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "userleader_backend.settings")
 import django
 django.setup()
@@ -182,7 +179,6 @@ class DataHandlingView(generics.CreateAPIView):
             # Path setup for model and reference data
             current_dir = os.path.dirname(os.path.abspath(__file__))
             model_path = os.path.join(current_dir, 'models', 'best_rf_model.pkl')
-            # Corrected reference file name
             reference_path = os.path.join(current_dir, 'data', 'IR_Correlation_Table_5000_to_250.xlsx')
 
             # Check if model and data files exist
@@ -211,7 +207,6 @@ class DataHandlingView(generics.CreateAPIView):
                 logger.warning("No peaks were detected or matched to the reference data.")
                 peak_report = ["No peaks were detected or matched to the reference data."]
             else:
-                # Get the user's choice for report type (Absorbance or Transmittance)
                 report_type = request.data.get('report_type', 'absorbance').lower()
                 if report_type not in ['absorbance', 'transmittance']:
                     report_type = 'absorbance'
@@ -223,7 +218,7 @@ class DataHandlingView(generics.CreateAPIView):
             try:
                 compound_name = predict_most_frequent_name(
                     data_df["wavenumber"].tolist(),
-                    data_df["absorbance"].tolist(),
+                    data_df["transmittance"].tolist(),   # ← fixed here!
                     model_path=model_path
                 )
                 logger.info(f"Model prediction completed successfully. Predicted compound name: {compound_name}")
@@ -232,38 +227,17 @@ class DataHandlingView(generics.CreateAPIView):
                 logger.debug(traceback.format_exc())
                 return Response({'error': 'Error during compound prediction.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # --- The reference dataset check ---
-            # try:
-            #     reference_df = pd.read_excel(reference_path)
-            #     reference_compounds = set(reference_df['Name'].dropna().str.lower())
-            #     if compound_name.lower() in reference_compounds:
-            #         message = "match with model dataset"
-            #     else:
-            #         message = "Don't match with model dataset"
-            #         compound_name = ""  
-            # except Exception as e:
-            #     logger.error(f"Error processing reference dataset for compound check: {e}")
-            #     message = "Don't match with model dataset"
-            #     compound_name = ""
-            # --------------------------------------------------
-
-            # Show message.
-            message = "Prediction completed successfully."
-
             # Prepare the response
-            response_data = {
+            return Response({
                 "compound_name": compound_name,
-                "message": message,
+                "message": "Prediction completed successfully.",
                 "peak_report": peak_report,
                 "data": {
                     "wavenumber": data_df["wavenumber"].tolist(),
                     "transmittance": data_df["transmittance"].tolist(),
                     "absorbance": data_df["absorbance"].tolist()
                 }
-            }
-
-            logger.info("File processed successfully.")
-            return Response(response_data, status=status.HTTP_200_OK)
+            }, status=status.HTTP_200_OK)
 
         except ValueError as ve:
             logger.error(f"ValueError encountered: {ve}")
