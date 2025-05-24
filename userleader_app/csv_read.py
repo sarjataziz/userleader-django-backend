@@ -37,7 +37,7 @@ def extract_x(data, start_row, x_index):
         'wavenumber': x_array.tolist(),
         'wavelengths': (1e4 / x_array).tolist()
     }
-    
+
 def extract_y(data, start_row, y_index, header_label):
     y = []
     for row in data[start_row:]:
@@ -66,19 +66,28 @@ def extract_y(data, start_row, y_index, header_label):
         }
 
     else:
-        # Default to transmittance if not identified
         y_array = np.clip(y_array, 0.0, 100.0)
         return {'transmittance': y_array.tolist()}
 
-
 def csv_read(file_content):
     try:
-        data = list(csv.reader(file_content.splitlines()))
-        if not data or len(data) < 2:
+        rows = list(csv.reader(file_content.splitlines()))
+        if not rows or len(rows) < 2:
             raise ValueError("CSV file is empty or malformed.")
 
-        header = [cell.strip() for cell in data[0]]
+        header_row_index = None
+        for i, row in enumerate(rows[:10]):
+            lower_row = [cell.lower().strip() for cell in row]
+            if any(any(kw in cell for kw in x_keywords + y_keywords) for cell in lower_row):
+                header_row_index = i
+                break
+
+        if header_row_index is None:
+            raise ValueError("Unable to detect valid wavenumber and transmittance/absorbance columns.")
+
+        header = [cell.strip() for cell in rows[header_row_index]]
         lower_header = [cell.lower() for cell in header]
+        data = rows[header_row_index:]  # from header onwards
 
         x_index, y_index = -1, -1
         x_label, y_label = '', ''
