@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 import os, sys, logging, traceback
 
+# When running this file directly, set __package__ so relative imports work.
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     __package__ = "userleader_app"
 
+# Add the project root to the Python path so that "userleader_backend.settings" can be found.
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Set Django settings
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "userleader_backend.settings")
 import django
 django.setup()
@@ -108,7 +111,7 @@ class DataHandlingView(generics.CreateAPIView):
             content = uploaded.read().decode("utf-8")
             logger.info(f"File content preview: {content[:100]}")
 
-            # Parse CSV 
+            # Parse CSV
             file_data = csv_read(content)
             if "wavenumber" not in file_data or not ("absorbance" in file_data or "transmittance" in file_data):
                 raise ValueError("Uploaded file must contain 'wavenumber' and 'absorbance' or 'transmittance' columns.")
@@ -123,7 +126,6 @@ class DataHandlingView(generics.CreateAPIView):
 
             df = pd.DataFrame({"wavenumber": wv, "absorbance": ab, "transmittance": tr})
             df = df.dropna().sort_values("wavenumber").reset_index(drop=True)
-
             if df.empty:
                 raise ValueError("Uploaded file contains no valid data.")
 
@@ -135,11 +137,11 @@ class DataHandlingView(generics.CreateAPIView):
             grouped  = group_and_filter_peaks_dynamic(detected, "Bond Type", "wavenumber")
             peak_report = generate_report(grouped, report_type=request.data.get("report_type", "absorbance"))
 
-            # Model prediction
+            # Model prediction  
             model_pth = os.path.join(base, "models", "best_rf_model.pkl")
             compound_name = predict_most_frequent_name(
                 wavenumbers   = df["wavenumber"].tolist(),
-                transmittance = df["transmittance"].tolist(),  
+                transmittance = df["transmittance"].tolist(),
                 model_path    = model_pth
             )
             logger.info(f"Predicted compound: {compound_name}")
