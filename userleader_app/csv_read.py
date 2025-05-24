@@ -31,13 +31,12 @@ def extract_x(rows, start, idx):
         s = row[idx].strip()
         if not s: continue
         # keep digits, ., -, ±
-        cleaned = re.sub(r'[^0-9\.\-\s±eE\+]', '', s)
+        cleaned = re.sub(r'[^0-9\.\-\s±]', '', s)
         try:
-            base = cleaned.split('±')[0] if '±' in cleaned else cleaned
+            base = cleaned.split('±')[0]
             vals.append(float(base))
         except ValueError:
             continue
-
     if not vals:
         raise ValueError("No valid wavenumber data found.")
     arr = np.array(vals, dtype=float)
@@ -52,104 +51,104 @@ def extract_y(rows, start, idx, header_label):
         if len(row) <= idx: continue
         s = row[idx].strip()
         if not s: continue
-        # allow sci notation too
         try:
-            vals.append(float(re.sub(r'[^0-9\.\-eE\+]', '', s)))
+            vals.append(float(s))
         except ValueError:
             continue
-
     if not vals:
         raise ValueError("No valid absorbance or transmittance values found.")
     arr = np.array(vals, dtype=float)
     h = header_label.strip().lower()
-
+    # decide by header
     if 'transmittance' in h or '%t' in h:
         arr = np.clip(arr, 0.0, 100.0)
         return {'transmittance': arr.tolist()}
-
     if 'absorbance' in h or h in ('a',):
         trans = 10 ** (-arr)
         return {'absorbance': arr.tolist(), 'transmittance': trans.tolist()}
-
     # fallback to %T
     arr = np.clip(arr, 0.0, 100.0)
     return {'transmittance': arr.tolist()}
 
 def csv_read(file_content: str) -> dict:
-    """
-    1) Try keyword‐based header detection
-    2) If none found, fall back to headerless two‐column numeric parse
-    """
     rows = list(csv.reader(file_content.splitlines()))
     if len(rows) < 1:
         raise ValueError("CSV file is empty or malformed.")
-    
+
     header_row = None
     for i, row in enumerate(rows[:20]):
         cells = [c.strip().lstrip('\ufeff') for c in row]
         lower = [c.lower() for c in cells]
-        if ( any(any(xk.lower() in cell for xk in x_keywords) for cell in lower)
-        and any(cell in ('a','t') or any(yk.lower() in cell for yk in y_keywords)
-                for cell in lower) ):
+        has_x = any(any(xk.lower() in cell for xk in x_keywords) for cell in lower)
+        has_y = any(cell in ('a','t') or any(yk.lower() in cell for yk in y_keywords)
+                    for cell in lower)
+        if has_x and has_y:
             header_row = i
             break
 
-    if header_row is not None:
-        header = [c.strip().lstrip('\ufeff') for c in rows[header_row]]
-        lower_h = [c.lower() for c in header]
-        data = rows[header_row:]  # header + data
-
-        # find indices
-        x_idx = y_idx = -1
-        for idx, col in enumerate(lower_h):
-            if x_idx < 0 and any(xk.lower() == col or xk.lower() in col for xk in x_keywords):
-                x_idx = idx
-            if y_idx < 0 and (col in ('a','t')
-                            or any(yk.lower() == col or yk.lower() in col for yk in y_keywords)):
-                if idx != x_idx:
-                    y_idx = idx
-
-        if x_idx < 0 or y_idx < 0:
-            header_row = None
-        else:
-            # extract & return
-            x_data = extract_x(data, 1, x_idx)
-            y_data = extract_y(data, 1, y_idx, header[y_idx])
-            n = min(len(x_data['wavenumber']), len(y_data.get('absorbance', y_data['transmittance'])))
-            if n == 0:
-                raise ValueError("No valid data found in both columns.")
-            out = {
+    if header_row is None:
+        all_two = True
+        for row in rows:
+            if len(row) != 2:
+                all_two = False
+                break
+            try:
+                float(row[0]); float(row[1])
+            except:
+                all_two = False
+                break
+        if all_two:
+            # pretend the first row is data, no header
+            # col0 = wavenumber, col1 = transmittance
+            # we’ll assign generic names and then extract
+            header = ['wavenumber', 'transmittance']
+            data = rows
+            x_idx, y_idx = 0, 1
+            x_data = extract_x(data, start=0, idx=x_idx)
+            y_data = extract_y(data, start=0, idx=y_idx, header_label='transmittance')
+            n = min(len(x_data['wavenumber']), len(y_data['transmittance']))
+            return {
                 'wavenumber': x_data['wavenumber'][:n],
-                'wavelengths': x_data['wavelengths'][:n]
+                'wavelengths': x_data['wavelengths'][:n],
+                'transmittance': y_data['transmittance'][:n]
             }
-            if 'absorbance' in y_data:
-                out['absorbance']    = y_data['absorbance'][:n]
-                out['transmittance'] = y_data['transmittance'][:n]
-            else:
-                out['transmittance'] = y_data['transmittance'][:n]
-            return out
+        else:
+            raise ValueError("Unable to detect valid wavenumber and transmittance/absorbance columns.")
 
-    w, t = [], []
-    for row in rows:
-        if len(row) < 2:
-            continue
-        # try parse first two entries as floats
-        try:
-            xval = float(row[0].strip())
-            yval = float(row[1].strip())
-            w.append(xval)
-            t.append(yval)
-        except:
-            continue
+    header = [c.strip().lstrip('\ufeff') for c in rows[header_row]]
+    lower_h = [c.lower() for c in header]
+    data = rows[header_row:]  
 
-    if not w or not t:
-        raise ValueError("Failed to parse CSV file: no two‐column numeric data found.")
+    x_idx = y_idx = -1
+    for idx, col in enumerate(lower_h):
+        if x_idx < 0 and any(xk.lower() == col or xk.lower() in col for xk in x_keywords):
+            x_idx = idx
+        if y_idx < 0 and (col in ('a','t')
+                        or any(yk.lower() == col or yk.lower() in col for yk in y_keywords)):
+            if idx != x_idx:
+                y_idx = idx
 
-    # treat second column as %T by default
-    absorbance = -np.log10(np.clip(np.array(t, dtype=float)/100.0, 1e-8, 1.0))
-    return {
-        'wavenumber': w,
-        'wavelengths': (1e4/np.array(w)).tolist(),
-        'absorbance': absorbance.tolist(),
-        'transmittance': t
+    if x_idx < 0 or y_idx < 0:
+        raise ValueError("Unable to detect valid wavenumber and transmittance/absorbance columns.")
+    if x_idx == y_idx:
+        raise ValueError("Wavenumber and transmittance/absorbance columns cannot be the same.")
+
+    x_data = extract_x(data, start=1, idx=x_idx)
+    y_data = extract_y(data, start=1, idx=y_idx, header_label=header[y_idx])
+
+    n = min(len(x_data['wavenumber']),
+            len(y_data.get('absorbance', y_data['transmittance'])))
+    if n == 0:
+        raise ValueError("No valid data found in both columns.")
+
+    result = {
+        'wavenumber': x_data['wavenumber'][:n],
+        'wavelengths': x_data['wavelengths'][:n]
     }
+    if 'absorbance' in y_data:
+        result['absorbance']    = y_data['absorbance'][:n]
+        result['transmittance'] = y_data['transmittance'][:n]
+    else:
+        result['transmittance'] = y_data['transmittance'][:n]
+
+    return result
