@@ -2,19 +2,18 @@ import csv
 import numpy as np
 import re
 
-# Keywords for identifying Y-axis: absorbance or transmittance
 y_keywords = [
-    'transmittance', 'Transmittance', 'TRANSMITTANCE', 't', 'T',
-    'absorbance', 'Absorbance', 'a', 'A', '(micromol/mol)-1m-1 (base 10)',
-    '%T', '%t', 'Percent Transmittance', 'percentT'
+    'transmittance', 'Transmittance', 'TRANSMITTANCE', '%T', '%t',
+    'Percent Transmittance', 'percent transmittance', 't', 'T',
+    'absorbance', 'Absorbance', 'ABSORBANCE', 'a', 'A',
+    '(micromol/mol)-1m-1 (base 10)'
 ]
 
-# Keywords for identifying X-axis: wavenumber
 x_keywords = [
-    'cm-1', 'wavenumber', 'Wavenumber', '1/cm', 'cm^-1', 'micrometers', 'um', 'wavelength (um)',
-    'nanometers', 'nm', 'wavelength (nm)', '1/m', 'm-1', 'm^-1', 'wavenumber (1/m)', 'Wavenumber (1/m)',
-    'wavenumber (m-1)', 'wavenumber (m^-1)', 'Wavenumber (m-1)', 'Wavenumber (m^-1)', 'wavenumber (1/cm)',
-    'Wavenumber (1/cm)', 'wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm-1)', 'Wavenumber (cm^-1)',
+    'cm-1', 'wavenumber', 'Wavenumber', 'WAVENUMBER', '1/cm', 'cm^-1', '1/m', 'm^-1',
+    'wavelength (um)', 'micrometers', 'um', 'wavelength (nm)', 'nanometers', 'nm',
+    'wavenumber (1/m)', 'Wavenumber (1/m)', 'wavenumber (1/cm)', 'Wavenumber (1/cm)',
+    'wavenumber (cm-1)', 'Wavenumber (cm-1)', 'wavenumber (cm^-1)', 'Wavenumber (cm^-1)',
     'CM-1', 'cm_1', 'Wavenumber (CM-1)'
 ]
 
@@ -24,7 +23,7 @@ def extract_x(data, start_row, x_index):
         if len(row) > x_index:
             value = row[x_index].strip()
             if value:
-                cleaned = re.sub(r'[^\d\.\-\s±]', '', value)
+                cleaned = re.sub(r'[^\d\.\-\s\u00B1]', '', value)
                 try:
                     base_value = cleaned.split('±')[0].strip() if '±' in cleaned else cleaned
                     x.append(float(base_value))
@@ -57,14 +56,9 @@ def extract_y(data, start_row, y_index, header_label):
     if 'transmittance' in header_value or '%t' in header_value or 'percent' in header_value:
         y_array = np.clip(y_array, 0.0, 100.0)
         return {'transmittance': y_array.tolist()}
-
     elif 'absorbance' in header_value or header_value in ('a',):
         transmittance = 10 ** (-y_array)
-        return {
-            'absorbance': y_array.tolist(),
-            'transmittance': transmittance.tolist()
-        }
-
+        return {'absorbance': y_array.tolist(), 'transmittance': transmittance.tolist()}
     else:
         y_array = np.clip(y_array, 0.0, 100.0)
         return {'transmittance': y_array.tolist()}
@@ -78,7 +72,7 @@ def csv_read(file_content):
         header_row_index = None
         for i, row in enumerate(rows[:10]):
             lower_row = [cell.lower().strip() for cell in row]
-            if any(any(kw in cell for kw in x_keywords + y_keywords) for cell in lower_row):
+            if any(any(kw.lower() in cell for kw in x_keywords + y_keywords) for cell in lower_row):
                 header_row_index = i
                 break
 
@@ -93,10 +87,10 @@ def csv_read(file_content):
         x_label, y_label = '', ''
 
         for idx, cell in enumerate(lower_header):
-            if x_index == -1 and any(keyword in cell for keyword in x_keywords):
+            if x_index == -1 and any(keyword.lower() in cell for keyword in x_keywords):
                 x_index = idx
                 x_label = header[idx]
-            elif y_index == -1 and any(keyword in cell for keyword in y_keywords):
+            elif y_index == -1 and any(keyword.lower() in cell for keyword in y_keywords):
                 if idx != x_index:
                     y_index = idx
                     y_label = header[idx]
