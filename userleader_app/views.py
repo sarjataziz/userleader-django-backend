@@ -103,19 +103,27 @@ class DataHandlingView(generics.CreateAPIView):
                 raise ValueError("Uploaded file must contain 'wavenumber' and 'absorbance' or 'transmittance' columns.")
 
             wv = file_data["wavenumber"]
+
+            # Normalize and compute missing values
             if "absorbance" in file_data:
-                ab = np.array(file_data["absorbance"])
-                tr = 10 ** (-ab)  
+                ab = np.array(file_data["absorbance"], dtype=float)
+                tr = 10 ** (-ab)  # fractional transmittance
             else:
                 tr_raw = np.array(file_data["transmittance"], dtype=float)
                 tr = np.where(tr_raw > 1, tr_raw / 100.0, tr_raw)
+                ab = -np.log10(np.clip(tr, 1e-8, 1.0))  # derive absorbance for peak detection
 
-            df = pd.DataFrame({"wavenumber": wv, "transmittance": tr})
-            df = df.dropna().sort_values("wavenumber").reset_index(drop=True)
+            # Final cleaned DataFrame
+            df = pd.DataFrame({
+                "wavenumber":    wv,
+                "transmittance": tr,
+                "absorbance":    ab
+            }).dropna().sort_values("wavenumber").reset_index(drop=True)
+
             if df.empty:
                 raise ValueError("Uploaded file contains no valid data.")
 
-            # Peak Detection
+            # Peak detection
             base = os.path.dirname(os.path.abspath(__file__))
             ref_xlsx = os.path.join(base, "data", "IR_Correlation_Table_5000_to_250.xlsx")
             reference_data = process_reference_data(ref_xlsx)
@@ -123,12 +131,12 @@ class DataHandlingView(generics.CreateAPIView):
             grouped = group_and_filter_peaks_dynamic(detected, "Bond Type", "wavenumber")
             peak_report = generate_report(grouped, report_type=request.data.get("report_type", "absorbance"))
 
-            # Prediction
+            # Model prediction
             model_pth = os.path.join(base, "models", "best_rf_model.pkl")
             compound_name = predict_most_frequent_name(
-                wavenumbers=df["wavenumber"].tolist(),
-                transmittance=df["transmittance"].tolist(),
-                model_path=model_pth
+                wavenumbers   = df["wavenumber"].tolist(),
+                transmittance = df["transmittance"].tolist(),
+                model_path    = model_pth
             )
             logger.info(f"Predicted compound: {compound_name}")
 
@@ -137,8 +145,9 @@ class DataHandlingView(generics.CreateAPIView):
                 "message": "Prediction completed successfully.",
                 "peak_report": peak_report,
                 "data": {
-                    "wavenumber": df["wavenumber"].tolist(),
+                    "wavenumber":    df["wavenumber"].tolist(),
                     "transmittance": df["transmittance"].tolist(),
+                    "absorbance":    df["absorbance"].tolist()
                 }
             }, status=status.HTTP_200_OK)
 
