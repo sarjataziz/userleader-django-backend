@@ -169,7 +169,7 @@ class DataHandlingView(generics.CreateAPIView):
                 "peak_report": peak_report,
                 "data": {
                     "wavenumber":    df["wavenumber"].tolist(),
-                    "transmittance": (df["transmittance"] * 100).round(4).tolist(),  # in %
+                    "transmittance": (df["transmittance"] * 100).round(4).tolist(), 
                     "absorbance":    df["absorbance"].round(6).tolist()
                 }
             }, status=status.HTTP_200_OK)
