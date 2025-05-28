@@ -84,36 +84,50 @@ class DataHandlingView(generics.CreateAPIView):
 
     @swagger_auto_schema(operation_description="Upload file to process both peak detection and model prediction.")
     def post(self, request, *args, **kwargs):
-        logger.info("Received request for file handling.")
+        logger.info("Starting file handling request...")
+
         try:
             if "file" not in request.data:
+                logger.warning("No file key found in request.")
                 return Response({"error": "No file provided. Please upload a CSV file."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
             uploaded = request.data["file"]
-            if not uploaded.name.lower().endswith(".csv"):
+            filename = uploaded.name
+            if not filename.lower().endswith(".csv"):
+                logger.warning(f"Invalid file format: {filename}")
                 return Response({"error": "Invalid file format. Please upload a CSV file."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            content = uploaded.read().decode("utf-8")
-            logger.info(f"File content preview: {content[:100]}")
+            logger.info(f"Received file: {filename}")
+            content = uploaded.read().decode("utf-8", errors="replace")
+            logger.debug(f"File content preview:\n{content[:100]}")
 
-            file_data = csv_read(content)
+            # Read CSV content
+            try:
+                file_data = csv_read(content)
+            except Exception as e:
+                logger.error(f"Error reading CSV in `csv_read()`: {e}")
+                raise ValueError("Failed to read CSV content. Please check your file formatting.")
+
             if "wavenumber" not in file_data or not ("absorbance" in file_data or "transmittance" in file_data):
-                raise ValueError("Uploaded file must contain 'wavenumber' and 'absorbance' or 'transmittance' columns.")
+                raise ValueError("CSV must contain 'wavenumber' and either 'absorbance' or 'transmittance' columns.")
 
-            wv = file_data["wavenumber"]
+            # Convert raw values
+            try:
+                wv = file_data["wavenumber"]
+                if "absorbance" in file_data:
+                    ab = np.array(file_data["absorbance"], dtype=float)
+                    tr = 10 ** (-ab)
+                else:
+                    tr_raw = np.array(file_data["transmittance"], dtype=float)
+                    tr = np.where(tr_raw > 1, tr_raw / 100.0, tr_raw)
+                    ab = -np.log10(np.clip(tr, 1e-8, 1.0))
+            except Exception as e:
+                logger.error(f"Error processing numerical columns: {e}")
+                raise ValueError("Failed to process absorbance/transmittance data. Check for invalid numeric values.")
 
-            # Normalize and compute missing values
-            if "absorbance" in file_data:
-                ab = np.array(file_data["absorbance"], dtype=float)
-                tr = 10 ** (-ab)  # fractional transmittance
-            else:
-                tr_raw = np.array(file_data["transmittance"], dtype=float)
-                tr = np.where(tr_raw > 1, tr_raw / 100.0, tr_raw)
-                ab = -np.log10(np.clip(tr, 1e-8, 1.0))  # derive absorbance for peak detection
-
-            # Final cleaned DataFrame
+            # Create cleaned DataFrame
             df = pd.DataFrame({
                 "wavenumber":    wv,
                 "transmittance": tr,
@@ -121,44 +135,53 @@ class DataHandlingView(generics.CreateAPIView):
             }).dropna().sort_values("wavenumber").reset_index(drop=True)
 
             if df.empty:
-                raise ValueError("Uploaded file contains no valid data.")
+                raise ValueError("Processed DataFrame is empty after cleaning.")
 
             # Peak detection
-            base = os.path.dirname(os.path.abspath(__file__))
-            ref_xlsx = os.path.join(base, "data", "IR_Correlation_Table_5000_to_250.xlsx")
-            reference_data = process_reference_data(ref_xlsx)
-            detected = detect_peaks_and_match(df, reference_data, prominence=0.005)
-            grouped = group_and_filter_peaks_dynamic(detected, "Bond Type", "wavenumber")
-            peak_report = generate_report(grouped, report_type=request.data.get("report_type", "absorbance"))
+            try:
+                base = os.path.dirname(os.path.abspath(__file__))
+                ref_xlsx = os.path.join(base, "data", "IR_Correlation_Table_5000_to_250.xlsx")
+                reference_data = process_reference_data(ref_xlsx)
+                detected = detect_peaks_and_match(df, reference_data, prominence=0.005)
+                grouped = group_and_filter_peaks_dynamic(detected, "Bond Type", "wavenumber")
+                peak_report = generate_report(grouped, report_type=request.data.get("report_type", "absorbance"))
+            except Exception as e:
+                logger.error(f"Peak detection failed: {e}")
+                raise ValueError("Peak detection or correlation table processing failed.")
 
-            # Model prediction
-            model_pth = os.path.join(base, "models", "best_rf_model.pkl")
-            compound_name = predict_most_frequent_name(
-                wavenumbers   = df["wavenumber"].tolist(),
-                transmittance = df["transmittance"].tolist(),
-                model_path    = model_pth
-            )
-            logger.info(f"Predicted compound: {compound_name}")
+            # Prediction
+            try:
+                model_pth = os.path.join(base, "models", "best_rf_model.pkl")
+                compound_name = predict_most_frequent_name(
+                    wavenumbers=df["wavenumber"].tolist(),
+                    transmittance=df["transmittance"].tolist(),
+                    model_path=model_pth
+                )
+                logger.info(f"Predicted compound: {compound_name}")
+            except Exception as e:
+                logger.error(f"Model prediction failed: {e}")
+                raise ValueError("Model prediction failed. Ensure the model file exists and is valid.")
 
+            # Response
             return Response({
                 "compound_name": compound_name,
                 "message": "Prediction completed successfully.",
                 "peak_report": peak_report,
                 "data": {
                     "wavenumber":    df["wavenumber"].tolist(),
-                    "transmittance": df["transmittance"].tolist(),
-                    "absorbance":    df["absorbance"].tolist()
+                    "transmittance": (df["transmittance"] * 100).round(4).tolist(),  # in %
+                    "absorbance":    df["absorbance"].round(6).tolist()
                 }
             }, status=status.HTTP_200_OK)
 
         except ValueError as ve:
-            logger.error(f"ValueError: {ve}")
+            logger.warning(f"ValueError in file handling: {ve}")
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             tb = traceback.format_exc()
-            logger.error(f"Unhandled error during file processing: {e}")
-            logger.error(tb)
+            logger.critical(f"Unhandled error during file processing: {e}")
+            logger.debug(tb)
             return Response({
                 "error": str(e),
                 "traceback": tb
